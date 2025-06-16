@@ -9,6 +9,7 @@ interface SolanaWallet {
   signMessage: (message: Uint8Array) => Promise<{ signature: Uint8Array }>;
   signTransaction: (transaction: any) => Promise<any>;
   signAndSendTransaction: (transaction: any) => Promise<string>;
+  request: (params: any) => Promise<any>;
 }
 
 interface WalletState {
