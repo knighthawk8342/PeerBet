@@ -1,111 +1,116 @@
 import { useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { Navigation } from "@/components/navigation";
-import { StatsCard } from "@/components/ui/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Market } from "@shared/schema";
+import { format } from "date-fns";
 
 export default function Admin() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { connected, publicKey } = useSolanaWallet();
   const { toast } = useToast();
 
-  // Redirect if not authenticated or not admin
+  // Admin access control - only specific wallet addresses can access admin functions
+  const adminWallets = [
+    "225uwqkTBvk9P8h7KaQNvmz5mAL4M5cUVMrJfU3zk5xP", // Original creator wallet
+    "3Wsd58mfJMq3hmsNwaZe896ny91ZaAaugfjBLuNYiAh4"  // Second wallet for testing
+  ];
+
+  const isAdmin = connected && publicKey && adminWallets.includes(publicKey);
+
+  // Show warning if not admin
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !user?.isAdmin)) {
+    if (connected && !isAdmin) {
       toast({
         title: "Unauthorized",
-        description: "Admin access required. Redirecting...",
+        description: "Admin access required.",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
     }
-  }, [isAuthenticated, isLoading, user?.isAdmin, toast]);
+  }, [connected, isAdmin, toast]);
 
-  const { data: pendingMarkets = [], isLoading: marketsLoading, refetch } = useQuery({
-    queryKey: ["/api/admin/markets/pending"],
-    enabled: isAuthenticated && user?.isAdmin,
-    retry: (failureCount, error) => {
-      if (isUnauthorizedError(error as Error)) {
-        toast({
-          title: "Unauthorized",
-          description: "Admin session expired. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return false;
-      }
-      return failureCount < 3;
-    },
-  });
-
-  const { data: allMarkets = [] } = useQuery({
+  // Fetch all markets for admin overview
+  const { data: allMarkets = [], isLoading: marketsLoading } = useQuery<Market[]>({
     queryKey: ["/api/markets"],
-    enabled: isAuthenticated && user?.isAdmin,
+    enabled: !!connected && !!isAdmin,
   });
 
+  // Settlement mutation
   const settleMutation = useMutation({
-    mutationFn: async ({ marketId, settlement }: { marketId: number; settlement: string }) => {
-      await apiRequest("POST", `/api/admin/markets/${marketId}/settle`, { settlement });
+    mutationFn: async ({ marketId, settlement }: { marketId: number, settlement: string }) => {
+      return await apiRequest(`/api/admin/markets/${marketId}/settle`, "POST", { settlement });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
       toast({
         title: "Market Settled",
-        description: "The market has been settled successfully!",
+        description: "Winner has been determined and payouts processed.",
       });
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
     },
     onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "Admin session expired. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
       toast({
-        title: "Error",
-        description: error.message || "Failed to settle market",
+        title: "Settlement Failed",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  if (isLoading || !isAuthenticated || !user?.isAdmin) {
-    return <div>Loading...</div>;
+  if (!connected) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Admin Panel
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Please connect your wallet to access admin functions.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  const openMarkets = allMarkets.filter((m: Market) => m.status === "open");
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Navigation />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Access Denied
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Your wallet ({publicKey?.slice(0, 8)}...) does not have admin privileges.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const activeMarkets = allMarkets.filter((m: Market) => m.status === "active");
   const settledMarkets = allMarkets.filter((m: Market) => m.status === "settled");
-  
+  const openMarkets = allMarkets.filter((m: Market) => m.status === "open");
+
   const totalVolume = allMarkets.reduce((sum: number, m: Market) => {
     const stakeAmount = parseFloat(m.stakeAmount);
-    return sum + (m.status === "active" || m.status === "settled" ? stakeAmount * 2 : stakeAmount);
+    const multiplier = m.status === "active" || m.status === "settled" ? 2 : 1;
+    return sum + (stakeAmount * multiplier);
   }, 0);
 
   const platformRevenue = settledMarkets.reduce((sum: number, m: Market) => {
-    if (m.settlement !== "refund") {
-      const stakeAmount = parseFloat(m.stakeAmount);
-      const totalPool = stakeAmount * 2;
-      return sum + (totalPool * 0.02);
-    }
-    return sum;
+    const stakeAmount = parseFloat(m.stakeAmount);
+    const totalPool = stakeAmount * 2;
+    const fee = totalPool * 0.02; // 2% platform fee
+    return sum + fee;
   }, 0);
 
   const handleSettle = (marketId: number, settlement: string) => {
@@ -113,172 +118,228 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navigation />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Panel</h1>
-          <p className="text-gray-600">Settle pending bets and manage platform</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Admin Panel
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage markets and settle betting outcomes
+          </p>
         </div>
 
-        {/* Platform Stats */}
+        {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Pending Settlement"
-            value={pendingMarkets.length}
-            icon="fas fa-clock"
-            color="warning"
-          />
-          <StatsCard
-            title="Platform Revenue"
-            value={`$${platformRevenue.toFixed(2)}`}
-            icon="fas fa-dollar-sign"
-            color="success"
-          />
-          <StatsCard
-            title="Total Users"
-            value="--"
-            icon="fas fa-users"
-            color="primary"
-          />
-          <StatsCard
-            title="Total Volume"
-            value={`$${totalVolume.toLocaleString()}`}
-            icon="fas fa-chart-bar"
-            color="gray"
-          />
-        </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Markets
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {allMarkets.length}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Platform Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle>Open Markets</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Active Markets
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{openMarkets.length}</div>
-              <p className="text-sm text-gray-600">Awaiting counterparties</p>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {activeMarkets.length}
+              </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardHeader>
-              <CardTitle>Active Bets</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Volume
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-600">{activeMarkets.length}</div>
-              <p className="text-sm text-gray-600">Requiring settlement</p>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {totalVolume.toFixed(3)} SOL
+              </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardHeader>
-              <CardTitle>Settled Markets</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Platform Revenue
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{settledMarkets.length}</div>
-              <p className="text-sm text-gray-600">Completed markets</p>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {platformRevenue.toFixed(3)} SOL
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Pending Settlements */}
-        <Card>
+        {/* Active Markets - Ready for Settlement */}
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Pending Settlements</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">
+              Active Markets - Awaiting Settlement
+            </CardTitle>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Markets with both participants that need outcome determination
+            </p>
           </CardHeader>
           <CardContent>
             {marketsLoading ? (
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="p-4 border rounded-lg animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </div>
-                ))}
-              </div>
-            ) : pendingMarkets.length === 0 ? (
               <div className="text-center py-8">
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-check-circle text-gray-400"></i>
-                </div>
-                <p className="text-gray-600">No pending settlements</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">Loading markets...</p>
+              </div>
+            ) : activeMarkets.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600 dark:text-gray-400">No active markets awaiting settlement</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Market</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Participants</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Stake</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Created</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingMarkets.map((market: Market) => (
-                      <tr key={market.id} className="border-b border-gray-100">
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="font-medium text-gray-900 line-clamp-2">{market.title}</div>
-                            <div className="text-sm text-gray-500 capitalize">{market.category}</div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm">
-                            <div>Creator: {market.creatorId}</div>
-                            <div>Counterparty: {market.counterpartyId}</div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div>
-                            <div className="font-medium">${parseFloat(market.stakeAmount).toFixed(2)}</div>
-                            <div className="text-sm text-gray-500">
-                              Pool: ${(parseFloat(market.stakeAmount) * 2).toFixed(2)}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-sm text-gray-500">
-                          {new Date(market.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSettle(market.id, "creator_wins")}
-                              disabled={settleMutation.isPending}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Creator Wins
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleSettle(market.id, "counterparty_wins")}
-                              disabled={settleMutation.isPending}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              Counterparty Wins
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSettle(market.id, "refund")}
-                              disabled={settleMutation.isPending}
-                            >
-                              Refund
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-4">
+                {activeMarkets.map((market: Market) => (
+                  <div key={market.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">
+                          {market.title}
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-2">
+                          {market.description}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                          <span>Category: {market.category}</span>
+                          <span>Stake: {market.stakeAmount} SOL each</span>
+                          <span>Total Pool: {(parseFloat(market.stakeAmount) * 2).toFixed(3)} SOL</span>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="ml-4">
+                        {market.status}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Creator</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                          {market.creatorId.slice(0, 8)}...{market.creatorId.slice(-8)}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Counterparty</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                          {market.counterpartyId?.slice(0, 8)}...{market.counterpartyId?.slice(-8) || "None"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => handleSettle(market.id, "creator_wins")}
+                        disabled={settleMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Creator Wins
+                      </Button>
+                      <Button
+                        onClick={() => handleSettle(market.id, "counterparty_wins")}
+                        disabled={settleMutation.isPending}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Counterparty Wins
+                      </Button>
+                      <Button
+                        onClick={() => handleSettle(market.id, "refund")}
+                        disabled={settleMutation.isPending}
+                        variant="outline"
+                      >
+                        Refund Both
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Market Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Open Markets */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                Open Markets ({openMarkets.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {openMarkets.length === 0 ? (
+                <p className="text-gray-600 dark:text-gray-400">No open markets</p>
+              ) : (
+                <div className="space-y-3">
+                  {openMarkets.slice(0, 5).map((market: Market) => (
+                    <div key={market.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">{market.title}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">{market.stakeAmount} SOL</div>
+                      </div>
+                      <Badge variant="outline">Open</Badge>
+                    </div>
+                  ))}
+                  {openMarkets.length > 5 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      +{openMarkets.length - 5} more markets
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Settled Markets */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                Recently Settled ({settledMarkets.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {settledMarkets.length === 0 ? (
+                <p className="text-gray-600 dark:text-gray-400">No settled markets</p>
+              ) : (
+                <div className="space-y-3">
+                  {settledMarkets.slice(0, 5).map((market: Market) => (
+                    <div key={market.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">{market.title}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {market.settlement === "creator_wins" ? "Creator Won" : 
+                           market.settlement === "counterparty_wins" ? "Counterparty Won" : "Refunded"}
+                        </div>
+                      </div>
+                      <Badge variant="secondary">Settled</Badge>
+                    </div>
+                  ))}
+                  {settledMarkets.length > 5 && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      +{settledMarkets.length - 5} more markets
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

@@ -165,11 +165,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/markets/:id/settle', requireWalletAuth, async (req: any, res) => {
+  // Admin settlement endpoint  
+  app.post('/api/admin/markets/:id/settle', requireWalletAuth, async (req: any, res) => {
     try {
       const user = req.user;
       const marketId = parseInt(req.params.id);
       const { settlement } = settleMarketSchema.parse(req.body);
+
+      // Admin wallet addresses - only these can settle markets
+      const adminWallets = [
+        "225uwqkTBvk9P8h7KaQNvmz5mAL4M5cUVMrJfU3zk5xP",
+        "3Wsd58mfJMq3hmsNwaZe896ny91ZaAaugfjBLuNYiAh4"
+      ];
+
+      if (!adminWallets.includes(user.id)) {
+        return res.status(403).json({ message: "Admin access required to settle markets" });
+      }
 
       const market = await storage.getMarket(marketId);
       
@@ -181,12 +192,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Market is not active" });
       }
 
-      // Check if user is admin (or market creator for now)
-      if (market.creatorId !== user.id && !user.isAdmin) {
-        return res.status(403).json({ message: "Not authorized to settle this market" });
+      if (!market.counterpartyId) {
+        return res.status(400).json({ message: "Market must have a counterparty to settle" });
       }
 
-      // Settle the market
+      // Settle the market in database
       const settledMarket = await storage.settleMarket(marketId, settlement);
       
       const stakeAmount = parseFloat(settledMarket.stakeAmount);
@@ -194,33 +204,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const platformFee = totalPot * PLATFORM_FEE_RATE;
       const winnerPayout = totalPot - platformFee;
 
-      // Determine winner
-      let winnerId: string;
+      // Determine winner and create transaction records
       if (settlement === "creator_wins") {
-        winnerId = settledMarket.creatorId;
-      } else if (settlement === "counterparty_wins" && settledMarket.counterpartyId) {
-        winnerId = settledMarket.counterpartyId;
-      } else {
-        return res.status(400).json({ message: "Invalid settlement type" });
-      }
-
-      // Update winner's balance
-      const winner = await storage.getUser(winnerId);
-      if (winner) {
-        const newBalance = parseFloat(winner.balance || "0") + winnerPayout;
-        await storage.updateUserBalance(winnerId, newBalance.toString());
-
-        // Create payout transaction
         await storage.createTransaction({
-          userId: winnerId,
+          userId: settledMarket.creatorId,
           marketId: settledMarket.id,
           type: "payout",
           amount: winnerPayout.toString(),
           description: `Won market: ${settledMarket.title}`,
         });
+      } else if (settlement === "counterparty_wins") {
+        await storage.createTransaction({
+          userId: settledMarket.counterpartyId!,
+          marketId: settledMarket.id,
+          type: "payout", 
+          amount: winnerPayout.toString(),
+          description: `Won market: ${settledMarket.title}`,
+        });
+      } else if (settlement === "refund") {
+        // Create refund transactions for both parties
+        await storage.createTransaction({
+          userId: settledMarket.creatorId,
+          marketId: settledMarket.id,
+          type: "refund",
+          amount: stakeAmount.toString(),
+          description: `Refund for market: ${settledMarket.title}`,
+        });
+        await storage.createTransaction({
+          userId: settledMarket.counterpartyId!,
+          marketId: settledMarket.id,
+          type: "refund",
+          amount: stakeAmount.toString(),
+          description: `Refund for market: ${settledMarket.title}`,
+        });
       }
 
-      res.json(settledMarket);
+      // Record platform fee transaction
+      if (settlement !== "refund") {
+        await storage.createTransaction({
+          userId: "platform",
+          marketId: settledMarket.id,
+          type: "fee",
+          amount: platformFee.toString(),
+          description: `Platform fee for market: ${settledMarket.title}`,
+        });
+      }
+
+      res.json({ 
+        market: settledMarket,
+        settlement: {
+          totalPot: totalPot.toString(),
+          winnerPayout: settlement === "refund" ? stakeAmount.toString() : winnerPayout.toString(),
+          platformFee: settlement === "refund" ? "0" : platformFee.toString(),
+          payoutRecipient: settlement === "creator_wins" ? settledMarket.creatorId : 
+                          settlement === "counterparty_wins" ? settledMarket.counterpartyId : "both"
+        }
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
