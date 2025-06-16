@@ -145,27 +145,21 @@ export function SOLPaymentModal({
           
           try {
             setPaymentStatus("confirming");
-            const result = await window.solana.signAndSendTransaction(transaction);
-            console.log("Raw wallet response:", result);
-            console.log("Response type:", typeof result);
-            console.log("Response keys:", result ? Object.keys(result) : "null");
             
-            if (typeof result === 'string') {
-              signature = result;
-            } else if (result && (result as any).signature) {
-              signature = (result as any).signature;
-            } else if (result && typeof (result as any).toString === 'function') {
-              signature = (result as any).toString();
-            } else {
-              console.error("Unexpected wallet response format:", result);
-              throw new Error("Invalid response from wallet - no signature found");
-            }
+            // Sign the transaction first
+            console.log("Signing transaction with Phantom...");
+            const signedTx = await window.solana.signTransaction(transaction);
+            console.log("Transaction signed successfully");
             
-            console.log("Extracted signature:", signature);
+            // Manually send the signed transaction to the network
+            console.log("Sending signed transaction to network...");
+            const txSignature = await connection.sendRawTransaction(signedTx.serialize(), {
+              skipPreflight: false,
+              preflightCommitment: 'confirmed'
+            });
+            console.log("Transaction sent with signature:", txSignature);
             
-            if (!signature) {
-              throw new Error("No signature returned from wallet");
-            }
+            signature = txSignature;
             
           } catch (phantomError: any) {
             console.error("Phantom signAndSendTransaction error:", phantomError);

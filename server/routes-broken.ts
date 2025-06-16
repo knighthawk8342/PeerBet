@@ -78,6 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/markets', requireWalletAuth, async (req: any, res) => {
     try {
       const user = req.user;
+
       const validatedData = insertMarketSchema.parse(req.body);
       
       // Check if user has sufficient balance
@@ -130,23 +131,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Market not found" });
       }
 
-      if (market.status !== "open") {
-        return res.status(400).json({ message: "Market is not open for joining" });
-      }
-
+      // Prevent user from joining their own market
       if (market.creatorId === user.id) {
         return res.status(400).json({ message: "Cannot join your own market" });
       }
 
-      const stakeAmount = parseFloat(market.stakeAmount);
-      
-      // Check if user has sufficient balance
-      const userBalance = parseFloat(user.balance || "0");
-      if (userBalance < stakeAmount) {
-        return res.status(400).json({ message: "Insufficient balance to join market" });
+      // Check if market is still open
+      if (market.status !== "open") {
+        return res.status(400).json({ message: "Market is not available for joining" });
       }
 
-      // Join the market
+      // Check if user has sufficient balance
+      const userBalance = parseFloat(user.balance || "0");
+      const stakeAmount = parseFloat(market.stakeAmount);
+      
+      if (userBalance < stakeAmount) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+
+      // Join market
       const updatedMarket = await storage.joinMarket(marketId, user.id);
 
       // Deduct stake from user balance
@@ -169,14 +172,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/markets/:id/settle', requireWalletAuth, async (req: any, res) => {
+  // Admin routes
+  app.get('/api/admin/markets/pending', requireWalletAuth, async (req: any, res) => {
     try {
-      const user = req.user;
+      const userId = req.user.id;
+      // User already available from middleware
+      
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const pendingMarkets = await storage.getMarkets("active");
+      res.json(pendingMarkets);
+    } catch (error) {
+      console.error("Error fetching pending markets:", error);
+      res.status(500).json({ message: "Failed to fetch pending markets" });
+    }
+  });
+
+  app.post('/api/admin/markets/:id/settle', requireWalletAuth, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      // User already available from middleware
+      
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
       const marketId = parseInt(req.params.id);
       const { settlement } = settleMarketSchema.parse(req.body);
-
-      const market = await storage.getMarket(marketId);
       
+      const market = await storage.getMarket(marketId);
       if (!market) {
         return res.status(404).json({ message: "Market not found" });
       }
@@ -185,42 +211,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Market is not active" });
       }
 
-      // Check if user is admin (or market creator for now)
-      if (market.creatorId !== user.id && !user.isAdmin) {
-        return res.status(403).json({ message: "Not authorized to settle this market" });
-      }
-
       // Settle the market
       const settledMarket = await storage.settleMarket(marketId, settlement);
       
-      const stakeAmount = parseFloat(settledMarket.stakeAmount);
-      const totalPot = stakeAmount * 2;
-      const platformFee = totalPot * PLATFORM_FEE_RATE;
-      const winnerPayout = totalPot - platformFee;
+      const stakeAmount = parseFloat(market.stakeAmount);
+      const totalPool = stakeAmount * 2;
+      const platformFee = totalPool * PLATFORM_FEE_RATE;
+      const winnerAmount = totalPool - platformFee;
 
-      // Determine winner
-      let winnerId: string;
+      // Process payouts based on settlement
       if (settlement === "creator_wins") {
-        winnerId = settledMarket.creatorId;
-      } else if (settlement === "counterparty_wins" && settledMarket.counterpartyId) {
-        winnerId = settledMarket.counterpartyId;
-      } else {
-        return res.status(400).json({ message: "Invalid settlement type" });
+        // Pay creator
+        const creator = await storage.getUser(market.creatorId);
+        if (creator) {
+          const newBalance = parseFloat(creator.balance || "0") + winnerAmount;
+          await storage.updateUserBalance(market.creatorId, newBalance.toString());
+          
+          await storage.createTransaction({
+            userId: market.creatorId,
+            marketId: market.id,
+            type: "payout",
+            amount: winnerAmount.toString(),
+            description: `Won market: ${market.title}`,
+          });
+        }
+      } else if (settlement === "counterparty_wins" && market.counterpartyId) {
+        // Pay counterparty
+        const counterparty = await storage.getUser(market.counterpartyId);
+        if (counterparty) {
+          const newBalance = parseFloat(counterparty.balance || "0") + winnerAmount;
+          await storage.updateUserBalance(market.counterpartyId, newBalance.toString());
+          
+          await storage.createTransaction({
+            userId: market.counterpartyId,
+            marketId: market.id,
+            type: "payout",
+            amount: winnerAmount.toString(),
+            description: `Won market: ${market.title}`,
+          });
+        }
+      } else if (settlement === "refund") {
+        // Refund both parties
+        const creator = await storage.getUser(market.creatorId);
+        if (creator) {
+          const newBalance = parseFloat(creator.balance || "0") + stakeAmount;
+          await storage.updateUserBalance(market.creatorId, newBalance.toString());
+          
+          await storage.createTransaction({
+            userId: market.creatorId,
+            marketId: market.id,
+            type: "refund",
+            amount: stakeAmount.toString(),
+            description: `Refund for market: ${market.title}`,
+          });
+        }
+
+        if (market.counterpartyId) {
+          const counterparty = await storage.getUser(market.counterpartyId);
+          if (counterparty) {
+            const newBalance = parseFloat(counterparty.balance || "0") + stakeAmount;
+            await storage.updateUserBalance(market.counterpartyId, newBalance.toString());
+            
+            await storage.createTransaction({
+              userId: market.counterpartyId,
+              marketId: market.id,
+              type: "refund",
+              amount: stakeAmount.toString(),
+              description: `Refund for market: ${market.title}`,
+            });
+          }
+        }
       }
 
-      // Update winner's balance
-      const winner = await storage.getUser(winnerId);
-      if (winner) {
-        const newBalance = parseFloat(winner.balance || "0") + winnerPayout;
-        await storage.updateUserBalance(winnerId, newBalance.toString());
-
-        // Create payout transaction
+      // Record platform fee if not refund
+      if (settlement !== "refund") {
         await storage.createTransaction({
-          userId: winnerId,
-          marketId: settledMarket.id,
-          type: "payout",
-          amount: winnerPayout.toString(),
-          description: `Won market: ${settledMarket.title}`,
+          userId: "platform",
+          marketId: market.id,
+          type: "fee",
+          amount: platformFee.toString(),
+          description: `Platform fee for market: ${market.title}`,
         });
       }
 
@@ -234,9 +304,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/markets/user', requireWalletAuth, async (req: any, res) => {
+  // User dashboard routes
+  app.get('/api/user/markets', requireWalletAuth, async (req: any, res) => {
     try {
-      const user = req.user;
+      const userId = req.user.id;
       const markets = await storage.getUserMarkets(user.id);
       res.json(markets);
     } catch (error) {
@@ -245,30 +316,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/transactions', requireWalletAuth, async (req: any, res) => {
+  app.get('/api/user/transactions', requireWalletAuth, async (req: any, res) => {
     try {
-      const user = req.user;
+      const userId = req.user.id;
       const transactions = await storage.getUserTransactions(user.id);
       res.json(transactions);
     } catch (error) {
-      console.error("Error fetching transactions:", error);
-      res.status(500).json({ message: "Failed to fetch transactions" });
-    }
-  });
-
-  // Admin routes
-  app.get('/api/admin/markets', requireWalletAuth, async (req: any, res) => {
-    try {
-      const user = req.user;
-      if (!user.isAdmin) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-      
-      const markets = await storage.getMarkets();
-      res.json(markets);
-    } catch (error) {
-      console.error("Error fetching admin markets:", error);
-      res.status(500).json({ message: "Failed to fetch markets" });
+      console.error("Error fetching user transactions:", error);
+      res.status(500).json({ message: "Failed to fetch user transactions" });
     }
   });
 
