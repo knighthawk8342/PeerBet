@@ -52,7 +52,30 @@ export default function Home() {
   const activeMarkets = demoMarkets.filter(m => m.status === "active");
 
   const handleJoinMarket = (marketId: number) => {
-    console.log(`Joining market ${marketId} with wallet ${publicKey}`);
+    if (!connected) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your Solana wallet to join markets",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const market = demoMarkets.find(m => m.id === marketId);
+    if (market) {
+      setSelectedMarket(market);
+      setIsPaymentModalOpen(true);
+    }
+  };
+
+  const handlePaymentComplete = () => {
+    if (selectedMarket) {
+      toast({
+        title: "Market Joined",
+        description: `Successfully joined "${selectedMarket.title}" with ${selectedMarket.stakeAmount} USDC`,
+      });
+      setSelectedMarket(null);
+    }
   };
 
   if (!connected) {
@@ -190,6 +213,16 @@ export default function Home() {
             </Button>
           </div>
         )}
+
+        {/* USDC Payment Modal */}
+        <USDCPaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onPaymentComplete={handlePaymentComplete}
+          amount={selectedMarket?.stakeAmount || "0"}
+          marketTitle={selectedMarket?.title || "Market"}
+          action="join"
+        />
       </div>
     </div>
   );
