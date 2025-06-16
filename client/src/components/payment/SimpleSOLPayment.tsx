@@ -56,34 +56,41 @@ export function SimpleSOLPayment({
 
       console.log(`Initiating ${amount} SOL transfer from ${publicKey} to ${TREASURY_WALLET}`);
 
-      // Create and send SOL transfer transaction
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      // Use Phantom's built-in transfer method (no external RPC needed)
+      console.log("Requesting Phantom to handle SOL transfer...");
       
-      const connection = new Connection("https://rpc.ankr.com/solana");
+      const response = await window.solana.request({
+        method: 'solana_requestAccounts',
+      });
+
+      if (!response || response.length === 0) {
+        throw new Error("No accounts found in wallet");
+      }
+
+      // Create transfer using Phantom's internal methods
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
 
-      // Create transfer instruction
+      // Create transfer instruction (Phantom will handle RPC calls internally)
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
         lamports,
       });
 
-      // Create transaction
+      // Create transaction (let Phantom handle blockhash and fee payer)
       const transaction = new Transaction().add(transferInstruction);
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
 
       console.log("Requesting Phantom to sign and send transaction...");
       
-      // Use Phantom's signAndSendTransaction method
-      const response = await window.solana.signAndSendTransaction(transaction);
-
-      if (response?.signature) {
-        console.log("Payment successful:", response.signature);
+      // Use Phantom's signAndSendTransaction - it handles RPC internally
+      const signature = await window.solana.signAndSendTransaction(transaction);
+      
+      if (signature) {
+        console.log("Payment successful:", signature);
         
         toast({
           title: "Payment Successful",
@@ -91,7 +98,7 @@ export function SimpleSOLPayment({
         });
 
         if (onPaymentComplete) {
-          onPaymentComplete(response.signature);
+          onPaymentComplete(signature);
         }
         
         onClose();
