@@ -34,7 +34,7 @@ export function SOLPaymentModal({
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "confirming" | "completed" | "failed">("pending");
   const [transactionHash, setTransactionHash] = useState<string>("");
   const { toast } = useToast();
-  const { publicKey, signMessage } = useSolanaWallet();
+  const { publicKey, connected, signMessage } = useSolanaWallet();
 
   const handleCopyAddress = () => {
     navigator.clipboard.writeText(TREASURY_WALLET);
@@ -257,10 +257,23 @@ export function SOLPaymentModal({
       
     } catch (error: any) {
       console.error("Transaction failed:", error);
+      console.error("Error details:", {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
+      });
+      
       setPaymentStatus("failed");
+      
+      let errorMessage = "Payment was cancelled or failed. Please try again.";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Transaction Failed",
-        description: "Payment was cancelled or failed. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
