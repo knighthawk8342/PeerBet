@@ -1,22 +1,46 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertMarketSchema, joinMarketSchema, settleMarketSchema } from "@shared/schema";
 import { z } from "zod";
+import type { RequestHandler } from "express";
 
 const PLATFORM_FEE_RATE = 0.02; // 2%
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+// Simple wallet-based authentication middleware
+const requireWalletAuth: RequestHandler = async (req: any, res, next) => {
+  const walletPublicKey = req.headers['x-wallet-public-key'] as string;
+  
+  if (!walletPublicKey) {
+    return res.status(401).json({ message: "Wallet public key required" });
+  }
+  
+  try {
+    // Get or create user based on wallet public key
+    let user = await storage.getUser(walletPublicKey);
+    if (!user) {
+      user = await storage.upsertUser({
+        id: walletPublicKey,
+        email: null,
+        firstName: null,
+        lastName: null,
+        profileImageUrl: null,
+      });
+    }
+    
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Auth error:", error);
+    res.status(401).json({ message: "Authentication failed" });
+  }
+};
 
+export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
+      res.json(req.user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -51,14 +75,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/markets', isAuthenticated, async (req: any, res) => {
+  app.post('/api/markets', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
+      const user = req.user;
 
       const validatedData = insertMarketSchema.parse(req.body);
       
@@ -98,9 +117,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/markets/:id/join', isAuthenticated, async (req: any, res) => {
+  app.post('/api/markets/:id/join', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const marketId = parseInt(req.params.id);
       
       const user = await storage.getUser(userId);
@@ -156,9 +175,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes
-  app.get('/api/admin/markets/pending', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/markets/pending', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user?.isAdmin) {
@@ -173,9 +192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/markets/:id/settle', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/markets/:id/settle', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user?.isAdmin) {
@@ -288,9 +307,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User dashboard routes
-  app.get('/api/user/markets', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/markets', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const markets = await storage.getUserMarkets(userId);
       res.json(markets);
     } catch (error) {
@@ -299,9 +318,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/user/transactions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/transactions', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const transactions = await storage.getUserTransactions(userId);
       res.json(transactions);
     } catch (error) {
