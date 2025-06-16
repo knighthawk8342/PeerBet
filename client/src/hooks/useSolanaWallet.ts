@@ -7,6 +7,8 @@ interface SolanaWallet {
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
   disconnect: () => Promise<void>;
   signMessage: (message: Uint8Array) => Promise<{ signature: Uint8Array }>;
+  signTransaction: (transaction: any) => Promise<any>;
+  signAndSendTransaction: (transaction: any) => Promise<string>;
 }
 
 interface WalletState {
