@@ -49,12 +49,13 @@ export default function Dashboard() {
   );
   const winRate = completedMarkets.length > 0 ? Math.round((wins.length / completedMarkets.length) * 100) : 0;
 
-  const totalProfit = transactions
-    .filter((t: Transaction) => t.type === "payout")
-    .reduce((sum: number, t: Transaction) => sum + parseFloat(t.amount), 0) -
-    transactions
-    .filter((t: Transaction) => t.type === "stake")
-    .reduce((sum: number, t: Transaction) => sum + parseFloat(t.amount), 0);
+  const totalProfit = Array.isArray(transactions) ? 
+    (transactions as Transaction[])
+      .filter((t: Transaction) => t.type === "payout")
+      .reduce((sum: number, t: Transaction) => sum + parseFloat(t.amount), 0) -
+    (transactions as Transaction[])
+      .filter((t: Transaction) => t.type === "stake")
+      .reduce((sum: number, t: Transaction) => sum + parseFloat(t.amount), 0) : 0;
 
   const getMarketStatus = (market: Market) => {
     if (market.status === "open") return { label: "Open", color: "bg-green-100 text-green-800" };
@@ -179,7 +180,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-              ) : transactions.length === 0 ? (
+              ) : !Array.isArray(transactions) || transactions.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <i className="fas fa-receipt text-gray-400"></i>
@@ -188,7 +189,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {transactions.slice(0, 10).map((transaction: Transaction) => (
+                  {(transactions as Transaction[]).slice(0, 10).map((transaction: Transaction) => (
                     <div key={transaction.id} className="p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-gray-900 capitalize">
@@ -205,7 +206,7 @@ export default function Dashboard() {
                       </div>
                       <p className="text-xs text-gray-600 line-clamp-2">{transaction.description}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {new Date(transaction.createdAt).toLocaleString()}
+                        {transaction.createdAt ? new Date(transaction.createdAt as string).toLocaleString() : 'N/A'}
                       </p>
                     </div>
                   ))}

@@ -114,7 +114,7 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
         </div>
         
         <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-          <span>Created {new Date(market.createdAt).toLocaleDateString()}</span>
+          <span>Created {market.createdAt ? new Date(market.createdAt).toLocaleDateString() : 'N/A'}</span>
           <span className="capitalize">{market.category}</span>
         </div>
         
