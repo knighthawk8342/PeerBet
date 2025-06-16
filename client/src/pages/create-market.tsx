@@ -10,7 +10,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { USDCPaymentModal } from "@/components/payment/USDCPaymentModal";
 import { useToast } from "@/hooks/use-toast";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { z } from "zod";
 
@@ -27,7 +29,10 @@ type FormData = z.infer<typeof formSchema>;
 export default function CreateMarket() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { connected, publicKey } = useSolanaWallet();
   const [stakeAmount, setStakeAmount] = useState(0);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [pendingMarketData, setPendingMarketData] = useState<FormData | null>(null);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -67,7 +72,26 @@ export default function CreateMarket() {
   });
 
   const onSubmit = (data: any) => {
-    createMarketMutation.mutate(data);
+    if (!connected) {
+      toast({
+        title: "Wallet Required",
+        description: "Please connect your Solana wallet to create a market",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Store form data and open payment modal
+    setPendingMarketData(data);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentComplete = () => {
+    if (pendingMarketData) {
+      // Process market creation after payment
+      createMarketMutation.mutate(pendingMarketData);
+      setPendingMarketData(null);
+    }
   };
 
   const platformFee = stakeAmount * 0.02;
@@ -248,10 +272,27 @@ export default function CreateMarket() {
                     Your opponent will need to stake the same amount to join this market.
                   </p>
                 </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
+                  <p className="text-sm text-green-800">
+                    <i className="fas fa-dollar-sign mr-1"></i>
+                    Payment required: {stakeAmount.toFixed(2)} USDC on Solana
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* USDC Payment Modal */}
+        <USDCPaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onPaymentComplete={handlePaymentComplete}
+          amount={stakeAmount.toFixed(2)}
+          marketTitle={pendingMarketData?.title || "New Market"}
+          action="create"
+        />
       </div>
     </div>
   );

@@ -4,13 +4,18 @@ import { StatsCard } from "@/components/ui/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { USDCPaymentModal } from "@/components/payment/USDCPaymentModal";
 import { useLocation } from "wouter";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const [filterStatus, setFilterStatus] = useState<string>("open");
   const { publicKey, connected } = useSolanaWallet();
+  const { toast } = useToast();
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedMarket, setSelectedMarket] = useState<any>(null);
 
   // Demo markets data for wallet-authenticated users
   const demoMarkets = [
