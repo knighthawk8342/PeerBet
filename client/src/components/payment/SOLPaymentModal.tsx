@@ -45,7 +45,12 @@ export function SOLPaymentModal({
   };
 
   const handleSendUSDC = async () => {
+    console.log("handleSendUSDC called");
+    console.log("publicKey:", publicKey);
+    console.log("connected status:", connected);
+    
     if (!publicKey) {
+      console.log("Wallet not connected");
       toast({
         title: "Wallet Not Connected",
         description: "Please connect your Solana wallet first",
@@ -57,6 +62,10 @@ export function SOLPaymentModal({
     setPaymentStatus("confirming");
     
     try {
+      console.log("Checking for wallet objects...");
+      console.log("window.solana:", !!window.solana);
+      console.log("window.solflare:", !!window.solflare);
+      
       const wallet = window.solana || window.solflare;
       
       if (!wallet) {
