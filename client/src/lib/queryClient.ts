@@ -2,8 +2,19 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 // Get current wallet public key from window global state
 function getCurrentWalletPublicKey(): string | null {
-  if (typeof window !== 'undefined' && (window as any).currentWalletPublicKey) {
-    return (window as any).currentWalletPublicKey;
+  if (typeof window !== 'undefined') {
+    // Check for Phantom wallet
+    if ((window as any).solana?.isConnected && (window as any).solana?.publicKey) {
+      return (window as any).solana.publicKey.toString();
+    }
+    // Check for Solflare wallet
+    if ((window as any).solflare?.isConnected && (window as any).solflare?.publicKey) {
+      return (window as any).solflare.publicKey.toString();
+    }
+    // Fallback to global variable if set
+    if ((window as any).currentWalletPublicKey) {
+      return (window as any).currentWalletPublicKey;
+    }
   }
   return null;
 }
@@ -27,6 +38,7 @@ export async function apiRequest(
   }
   
   const walletPublicKey = getCurrentWalletPublicKey();
+  console.log("API Request - Wallet Public Key:", walletPublicKey);
   if (walletPublicKey) {
     headers["x-wallet-public-key"] = walletPublicKey;
   }

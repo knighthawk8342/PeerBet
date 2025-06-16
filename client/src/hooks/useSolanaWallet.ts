@@ -116,6 +116,9 @@ export function useSolanaWallet() {
       publicKey: null,
       wallet: null,
     });
+
+    // Clear global wallet public key
+    (window as any).currentWalletPublicKey = null;
   };
 
   const signMessage = async (message: string) => {
