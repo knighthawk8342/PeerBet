@@ -43,11 +43,25 @@ export default function Dashboard() {
 
   const activeMarkets = userMarkets.filter((m: Market) => m.status === "active");
   const completedMarkets = userMarkets.filter((m: Market) => m.status === "settled");
-  const wins = completedMarkets.filter((m: Market) => 
-    (m.settlement === "creator_wins" && m.creatorId === publicKey) ||
-    (m.settlement === "counterparty_wins" && m.counterpartyId === publicKey)
-  );
-  const winRate = completedMarkets.length > 0 ? Math.round((wins.length / completedMarkets.length) * 100) : 0;
+  
+  // Only count non-refunded markets for win rate calculation
+  const decidedMarkets = completedMarkets.filter((m: Market) => m.settlement !== "refund");
+  
+  const wins = decidedMarkets.filter((m: Market) => {
+    const isCreatorWin = m.settlement === "creator_wins" && m.creatorId === publicKey;
+    const isCounterpartyWin = m.settlement === "counterparty_wins" && m.counterpartyId === publicKey;
+    return isCreatorWin || isCounterpartyWin;
+  });
+  
+  const losses = decidedMarkets.filter((m: Market) => {
+    const isCreatorLoss = m.settlement === "counterparty_wins" && m.creatorId === publicKey;
+    const isCounterpartyLoss = m.settlement === "creator_wins" && m.counterpartyId === publicKey;
+    return isCreatorLoss || isCounterpartyLoss;
+  });
+  
+  const refunds = completedMarkets.filter((m: Market) => m.settlement === "refund");
+  
+  const winRate = decidedMarkets.length > 0 ? Math.round((wins.length / decidedMarkets.length) * 100) : 0;
 
   const totalProfit = Array.isArray(transactions) ? 
     (transactions as Transaction[])
@@ -92,13 +106,13 @@ export default function Dashboard() {
           />
           <StatsCard
             title="Win Rate"
-            value={`${winRate}%`}
+            value={decidedMarkets.length > 0 ? `${winRate}% (${wins.length}W/${losses.length}L)` : "No games"}
             icon="fas fa-trophy"
             color="success"
           />
           <StatsCard
             title="Total Profit"
-            value={`${totalProfit >= 0 ? '+' : ''}$${totalProfit.toFixed(2)}`}
+            value={`${totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(4)} SOL`}
             icon="fas fa-chart-bar"
             color={totalProfit >= 0 ? "success" : "destructive"}
           />
