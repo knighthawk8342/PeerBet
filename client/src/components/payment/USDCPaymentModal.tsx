@@ -72,9 +72,6 @@ export function USDCPaymentModal({
       let signature;
       
       try {
-        // Create Solana Pay URL for USDC transfer
-        const solanaPayUrl = `solana:${TREASURY_WALLET}?amount=${amount}&spl-token=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&label=${encodeURIComponent(`${action === 'create' ? 'Creating' : 'Joining'} Market`)}&message=${encodeURIComponent(`${amount} USDC payment for ${marketTitle}`)}`;
-        
         // Check for Phantom wallet
         if (window.solana && window.solana.isPhantom) {
           // Ensure Phantom is connected
@@ -82,8 +79,16 @@ export function USDCPaymentModal({
             await window.solana.connect();
           }
           
+          // Create Phantom-specific deep link for USDC transfer
+          const phantomUrl = `https://phantom.app/ul/v1/transfer?recipient=${TREASURY_WALLET}&amount=${amount}&spl-token=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&cluster=mainnet-beta`;
+          
           // Open Phantom app with USDC transfer request
-          window.open(solanaPayUrl, '_blank');
+          const opened = window.open(phantomUrl, '_blank', 'width=400,height=600');
+          
+          if (!opened) {
+            // Fallback: try mobile deep link
+            window.location.href = `phantom://v1/transfer?recipient=${TREASURY_WALLET}&amount=${amount}&spl-token=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
+          }
           
           // Wait for user to complete transaction in wallet
           await new Promise(resolve => setTimeout(resolve, 5000));
@@ -97,8 +102,15 @@ export function USDCPaymentModal({
             await window.solflare.connect();
           }
           
-          // Open Solflare with USDC transfer
-          window.open(solanaPayUrl, '_blank');
+          // Create Solflare-specific transfer URL
+          const solflareUrl = `https://solflare.com/transfer?to=${TREASURY_WALLET}&amount=${amount}&token=USDC&cluster=mainnet-beta`;
+          
+          const opened = window.open(solflareUrl, '_blank', 'width=400,height=600');
+          
+          if (!opened) {
+            // Fallback: try mobile deep link
+            window.location.href = `solflare://transfer?to=${TREASURY_WALLET}&amount=${amount}&token=USDC`;
+          }
           
           await new Promise(resolve => setTimeout(resolve, 5000));
           signature = `solflare_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 20)}`;
