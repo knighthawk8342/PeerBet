@@ -95,7 +95,7 @@ export function SOLPaymentModal({
         // Dynamic imports to avoid bundle issues
         const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
 
-        const connection = new Connection("https://solana-api.projectserum.com");
+        const connection = new Connection("https://rpc.ankr.com/solana");
         const treasuryPubkey = new PublicKey(TREASURY_WALLET);
         const userPubkey = new PublicKey(publicKey);
 
@@ -138,18 +138,31 @@ export function SOLPaymentModal({
 
         console.log("Transaction created, requesting wallet signature...");
 
+        // Validate that we're not sending to ourselves
+        if (publicKey === TREASURY_WALLET) {
+          throw new Error("Cannot send SOL to the same wallet. Please connect a different wallet.");
+        }
+
         toast({
           title: "Confirm Payment",
-          description: `Sending ${amount} SOL equivalent to treasury wallet`,
+          description: `Sending ${amount} SOL to treasury wallet`,
         });
 
         // Check for Phantom wallet
         if (window.solana && window.solana.isPhantom) {
           console.log("Using Phantom wallet...");
+          console.log("Phantom connected status:", window.solana.isConnected);
+          
           // Ensure Phantom is connected
           if (!window.solana.isConnected) {
             console.log("Connecting to Phantom...");
-            await window.solana.connect();
+            try {
+              await window.solana.connect();
+              console.log("Successfully connected to Phantom");
+            } catch (connectError: any) {
+              console.error("Failed to connect to Phantom:", connectError);
+              throw new Error("Failed to connect to Phantom wallet. Please try again.");
+            }
           }
 
           // Sign and send the transfer transaction
