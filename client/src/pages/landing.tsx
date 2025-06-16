@@ -22,8 +22,9 @@ export default function Landing() {
             <div className="flex items-center gap-3">
               {connected ? (
                 <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <div className="text-sm text-gray-600">
-                    Connected: {publicKey?.slice(0, 4)}...{publicKey?.slice(-4)}
+                    {publicKey?.slice(0, 6)}...{publicKey?.slice(-6)}
                   </div>
                   <Button 
                     variant="outline"
@@ -35,19 +36,12 @@ export default function Landing() {
                 </div>
               ) : (
                 <Button 
-                  variant="outline"
                   onClick={() => setIsWalletModalOpen(true)}
-                  className="mr-2"
+                  className="bg-primary hover:bg-primary/90"
                 >
-                  Connect Wallet
+                  Connect Wallet to Sign In
                 </Button>
               )}
-              <Button 
-                onClick={() => window.location.href = '/api/login'}
-                className="bg-primary hover:bg-primary/90"
-              >
-                Sign In
-              </Button>
             </div>
           </div>
         </div>
@@ -118,13 +112,23 @@ export default function Landing() {
             </Card>
           </div>
 
-          <Button 
-            size="lg"
-            onClick={() => window.location.href = '/api/login'}
-            className="bg-primary hover:bg-primary/90 px-8 py-3 text-lg"
-          >
-            Get Started
-          </Button>
+          {!connected ? (
+            <Button 
+              size="lg"
+              onClick={() => setIsWalletModalOpen(true)}
+              className="bg-primary hover:bg-primary/90 px-8 py-3 text-lg"
+            >
+              Connect Wallet to Get Started
+            </Button>
+          ) : (
+            <Button 
+              size="lg"
+              onClick={() => window.location.href = '/'}
+              className="bg-primary hover:bg-primary/90 px-8 py-3 text-lg"
+            >
+              Enter App
+            </Button>
+          )}
         </div>
       </main>
 

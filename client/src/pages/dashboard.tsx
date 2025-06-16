@@ -1,33 +1,14 @@
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
 import { Navigation } from "@/components/navigation";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WalletStatus } from "@/components/wallet/WalletStatus";
-import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import type { Market, Transaction } from "@shared/schema";
 
 export default function Dashboard() {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const { toast } = useToast();
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
+  const { publicKey } = useSolanaWallet();
 
   const { data: userMarkets = [], isLoading: marketsLoading } = useQuery({
     queryKey: ["/api/user/markets"],

@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { WalletConnectionModal } from "@/components/wallet/WalletConnectionModal";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 
 export function Navigation() {
-  const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const { connected, publicKey, disconnect } = useSolanaWallet();
@@ -16,10 +14,6 @@ export function Navigation() {
     { path: "/dashboard", label: "Dashboard", active: location === "/dashboard" },
     { path: "/create", label: "Create Market", active: location === "/create" },
   ];
-
-  if ((user as any)?.isAdmin) {
-    navItems.push({ path: "/admin", label: "Admin", active: location === "/admin" });
-  }
 
   const handleWalletConnect = (publicKey: string) => {
     console.log('Wallet connected in navigation:', publicKey);
@@ -54,51 +48,32 @@ export function Navigation() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-3">
-              <div className="text-sm text-gray-600">Balance:</div>
-              <div className="font-semibold text-gray-900">
-                ${parseFloat((user as any)?.balance || "0").toFixed(2)}
-              </div>
-            </div>
-            
             {/* Wallet Status */}
-            <div className="hidden md:flex items-center space-x-2">
-              {connected ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-xs text-gray-600">
-                    {publicKey?.slice(0, 4)}...{publicKey?.slice(-4)}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={disconnect}
-                    className="text-xs px-2 py-1 h-6"
-                  >
-                    Disconnect
-                  </Button>
-                </div>
-              ) : (
+            {connected ? (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm text-gray-600 font-mono">
+                  {publicKey?.slice(0, 6)}...{publicKey?.slice(-6)}
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsWalletModalOpen(true)}
-                  className="text-xs px-2 py-1 h-6"
+                  onClick={disconnect}
+                  className="text-xs"
                 >
-                  <i className="fas fa-wallet mr-1"></i>
-                  Connect Wallet
+                  Disconnect
                 </Button>
-              )}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = '/api/logout'}
-            >
-              <i className="fas fa-sign-out-alt w-4 h-4 mr-2"></i>
-              Logout
-            </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsWalletModalOpen(true)}
+              >
+                <i className="fas fa-wallet mr-2"></i>
+                Connect Wallet
+              </Button>
+            )}
           </div>
         </div>
       </div>
