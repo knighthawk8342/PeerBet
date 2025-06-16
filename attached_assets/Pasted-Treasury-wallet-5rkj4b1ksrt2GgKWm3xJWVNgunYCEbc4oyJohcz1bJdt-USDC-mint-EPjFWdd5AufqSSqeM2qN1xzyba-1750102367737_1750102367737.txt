@@ -1,0 +1,28 @@
+Treasury wallet: 5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt
+USDC mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+USDC amount in lamports: 1000000
+Getting associated token accounts...
+User token account: 9B1DjzMwpr96dxJkiDHv3XmWyKgjWbR7kPsVRhMqAPKv
+Treasury token account: 9B1DjzMwpr96dxJkiDHv3XmWyKgjWbR7kPsVRhMqAPKv
+Token account check failed: 
+Error {}
+
+at t.value (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Wallet transaction error: 
+Error {}
+
+at t.value (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Transaction failed: 
+Error {}
+message: "Transaction failed: Unable to verify your USDC token account. Make sure you have USDC in your wallet."
+stack: "Error: Transaction failed: Unable to verify your USDC token account. Make sure you have USDC in your wallet.↵ at handleSendUSDC (https://06b6e55d-24f0-48fb-843f-5e2ee2b14370-00-wf5pqo76n1t0.picard.replit.dev/src/components/payment/USDCPaymentModal.tsx?t=1750102177390:163:17)"
+get stack: ƒ ()
+set stack: ƒ ()
+[[Prototype]]: Object
+
