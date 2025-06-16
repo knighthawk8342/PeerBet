@@ -57,9 +57,40 @@ export function Navigation() {
             <div className="hidden md:flex items-center space-x-3">
               <div className="text-sm text-gray-600">Balance:</div>
               <div className="font-semibold text-gray-900">
-                ${parseFloat(user?.balance || "0").toFixed(2)}
+                ${parseFloat((user as any)?.balance || "0").toFixed(2)}
               </div>
             </div>
+            
+            {/* Wallet Status */}
+            <div className="hidden md:flex items-center space-x-2">
+              {connected ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-xs text-gray-600">
+                    {publicKey?.slice(0, 4)}...{publicKey?.slice(-4)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={disconnect}
+                    className="text-xs px-2 py-1 h-6"
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsWalletModalOpen(true)}
+                  className="text-xs px-2 py-1 h-6"
+                >
+                  <i className="fas fa-wallet mr-1"></i>
+                  Connect Wallet
+                </Button>
+              )}
+            </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -71,6 +102,13 @@ export function Navigation() {
           </div>
         </div>
       </div>
+      
+      {/* Wallet Connection Modal */}
+      <WalletConnectionModal
+        isOpen={isWalletModalOpen}
+        onClose={() => setIsWalletModalOpen(false)}
+        onConnect={handleWalletConnect}
+      />
     </nav>
   );
 }

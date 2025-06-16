@@ -5,6 +5,7 @@ import { Navigation } from "@/components/navigation";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { WalletStatus } from "@/components/wallet/WalletStatus";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Market, Transaction } from "@shared/schema";
@@ -130,12 +131,13 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* My Markets */}
-          <Card>
-            <CardHeader>
-              <CardTitle>My Markets</CardTitle>
-            </CardHeader>
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Markets</CardTitle>
+              </CardHeader>
             <CardContent>
               {marketsLoading ? (
                 <div className="space-y-4">
@@ -177,10 +179,15 @@ export default function Dashboard() {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </div>
 
-          {/* Recent Transactions */}
-          <Card>
+          {/* Sidebar with Wallet Status */}
+          <div className="space-y-6">
+            <WalletStatus showFullCard={true} />
+            
+            {/* Recent Transactions */}
+            <Card>
             <CardHeader>
               <CardTitle>Recent Transactions</CardTitle>
             </CardHeader>
@@ -227,7 +234,8 @@ export default function Dashboard() {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
