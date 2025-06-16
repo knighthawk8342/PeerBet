@@ -58,33 +58,46 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Create the most basic transaction
-      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      // Create transaction with proper setup
+      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      
+      // Use devnet for reliable connection
+      const connection = new Connection("https://api.devnet.solana.com");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
 
-      // Create simple transfer instruction
+      // Create transfer instruction
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
         lamports,
       });
 
-      // Create minimal transaction
+      // Create transaction and set required fields
       const transaction = new Transaction().add(transferInstruction);
+      
+      // Get recent blockhash - required for transaction
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
 
       console.log("Requesting Phantom signature...");
 
-      // Let Phantom handle everything - just request signature
+      // Request signature from Phantom
       const signedTransaction = await window.solana.signTransaction(transaction);
 
       if (signedTransaction) {
-        // For demo purposes, treat signed transaction as success
-        const mockSignature = `demo_signature_${Date.now()}`;
+        console.log("Transaction signed successfully");
         
-        console.log("Payment completed successfully");
+        // Send the signed transaction to the network
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        console.log("Transaction sent with signature:", signature);
+        
+        // Wait for confirmation
+        await connection.confirmTransaction(signature, 'confirmed');
+        console.log("Transaction confirmed");
         
         toast({
           title: "Payment Successful",
@@ -92,7 +105,7 @@ export function BasicSOLPayment({
         });
 
         if (onPaymentComplete) {
-          onPaymentComplete(mockSignature);
+          onPaymentComplete(signature);
         }
         
         onClose();

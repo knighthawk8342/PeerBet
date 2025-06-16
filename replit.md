@@ -105,6 +105,8 @@ Changelog:
 - June 16, 2025. Implemented wallet-based authentication (removed traditional sessions)
 - June 16, 2025. Fixed transaction signing and sending flow for actual SOL transfers
 - June 16, 2025. Added balance checking and proper error handling for insufficient funds
+- June 16, 2025. Fixed transaction blockhash requirements for Phantom wallet compatibility
+- June 16, 2025. Simplified payment flow to use devnet for reliable blockchain access
 ```
 
 ## User Preferences
