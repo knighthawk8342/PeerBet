@@ -243,6 +243,27 @@ export default function Admin() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Created</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          {new Date(market.createdAt!).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Expires</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                          {new Date(market.expiryDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment Signature</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                          {market.paymentSignature?.slice(0, 8)}...{market.paymentSignature?.slice(-8)}
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="flex space-x-2">
                       <Button
                         onClick={() => handleSettle(market.id, "creator_wins")}
@@ -310,31 +331,100 @@ export default function Admin() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-                Recently Settled ({settledMarkets.length})
+                Settled Markets ({settledMarkets.length})
               </CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Completed markets with final outcomes and payouts
+              </p>
             </CardHeader>
             <CardContent>
               {settledMarkets.length === 0 ? (
-                <p className="text-gray-600 dark:text-gray-400">No settled markets</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-600 dark:text-gray-400">No settled markets</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {settledMarkets.slice(0, 5).map((market: Market) => (
-                    <div key={market.id} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">{market.title}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {market.settlement === "creator_wins" ? "Creator Won" : 
-                           market.settlement === "counterparty_wins" ? "Counterparty Won" : "Refunded"}
+                <div className="space-y-4">
+                  {settledMarkets.map((market: Market) => (
+                    <div key={market.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">
+                            {market.title}
+                          </h3>
+                          <p className="text-gray-600 dark:text-gray-400 mb-2">
+                            {market.description}
+                          </p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                            <span>Category: {market.category}</span>
+                            <span>Stake: {market.stakeAmount} SOL each</span>
+                            <span>Total Pool: {(parseFloat(market.stakeAmount) * 2).toFixed(3)} SOL</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2">
+                          <Badge 
+                            variant={market.settlement === "creator_wins" ? "default" : 
+                                   market.settlement === "counterparty_wins" ? "secondary" : "outline"}
+                          >
+                            {market.settlement === "creator_wins" ? "Creator Won" : 
+                             market.settlement === "counterparty_wins" ? "Counterparty Won" : 
+                             market.settlement === "refund" ? "Refunded" : "Settled"}
+                          </Badge>
                         </div>
                       </div>
-                      <Badge variant="secondary">Settled</Badge>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Creator</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                            {market.creatorId.slice(0, 8)}...{market.creatorId.slice(-8)}
+                          </div>
+                          {market.settlement === "creator_wins" && (
+                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              Winner - Received {(parseFloat(market.stakeAmount) * 2 * 0.98).toFixed(4)} SOL
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Counterparty</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                            {market.counterpartyId?.slice(0, 8)}...{market.counterpartyId?.slice(-8) || "None"}
+                          </div>
+                          {market.settlement === "counterparty_wins" && (
+                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              Winner - Received {(parseFloat(market.stakeAmount) * 2 * 0.98).toFixed(4)} SOL
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Created</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            {new Date(market.createdAt!).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Settled</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            {market.settledAt ? new Date(market.settledAt).toLocaleDateString() : "N/A"}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Platform Fee</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            {market.settlement === "refund" ? "0 SOL" : `${(parseFloat(market.stakeAmount) * 2 * 0.02).toFixed(4)} SOL`}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment Signature</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+                            {market.paymentSignature?.slice(0, 8)}...{market.paymentSignature?.slice(-8)}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ))}
-                  {settledMarkets.length > 5 && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      +{settledMarkets.length - 5} more markets
-                    </p>
-                  )}
                 </div>
               )}
             </CardContent>

@@ -61,8 +61,8 @@ export default function Dashboard() {
     if (market.status === "active") return { label: "Active", color: "bg-orange-100 text-orange-800" };
     if (market.status === "settled") {
       if (market.settlement === "refund") return { label: "Refunded", color: "bg-gray-100 text-gray-800" };
-      const isWinner = (market.settlement === "creator_wins" && market.creatorId === user?.id) ||
-                      (market.settlement === "counterparty_wins" && market.counterpartyId === user?.id);
+      const isWinner = (market.settlement === "creator_wins" && market.creatorId === publicKey) ||
+                      (market.settlement === "counterparty_wins" && market.counterpartyId === publicKey);
       return { 
         label: isWinner ? "Won" : "Lost", 
         color: isWinner ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800" 
@@ -84,8 +84,8 @@ export default function Dashboard() {
         {/* User Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatsCard
-            title="Current Balance"
-            value={`$${parseFloat(user?.balance || "0").toFixed(2)}`}
+            title="Connected Wallet"
+            value={publicKey ? `${publicKey.slice(0, 8)}...${publicKey.slice(-4)}` : "Not Connected"}
             icon="fas fa-wallet"
             color="primary"
           />
@@ -137,7 +137,7 @@ export default function Dashboard() {
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {userMarkets.map((market: Market) => {
                     const status = getMarketStatus(market);
-                    const isCreator = market.creatorId === user?.id;
+                    const isCreator = market.creatorId === publicKey;
                     
                     return (
                       <div key={market.id} className="p-4 bg-gray-50 rounded-lg">
@@ -147,9 +147,9 @@ export default function Dashboard() {
                         </div>
                         <div className="flex items-center justify-between text-sm text-gray-600">
                           <span>
-                            {isCreator ? "Creator" : "Counterparty"} • ${parseFloat(market.stakeAmount).toFixed(2)} staked
+                            {isCreator ? "Creator" : "Counterparty"} • {parseFloat(market.stakeAmount).toFixed(3)} SOL staked
                           </span>
-                          <span>{new Date(market.createdAt).toLocaleDateString()}</span>
+                          <span>{market.createdAt ? new Date(market.createdAt).toLocaleDateString() : 'N/A'}</span>
                         </div>
                       </div>
                     );
