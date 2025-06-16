@@ -5,27 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WalletStatus } from "@/components/wallet/WalletStatus";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { useToast } from "@/hooks/use-toast";
 import type { Market, Transaction } from "@shared/schema";
 
 export default function Dashboard() {
-  const { publicKey } = useSolanaWallet();
+  const { connected, publicKey } = useSolanaWallet();
+  const { toast } = useToast();
 
   const { data: userMarkets = [], isLoading: marketsLoading } = useQuery({
     queryKey: ["/api/user/markets"],
-    enabled: isAuthenticated,
-    retry: (failureCount, error) => {
-      if (isUnauthorizedError(error as Error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return false;
+    enabled: connected && !!publicKey,
+    queryFn: async () => {
+      // Set wallet public key for authentication
+      if (typeof window !== 'undefined' && publicKey) {
+        (window as any).currentWalletPublicKey = publicKey;
       }
-      return failureCount < 3;
+      
+      const response = await fetch("/api/user/markets", {
+        credentials: "include",
+        headers: {
+          "x-wallet-public-key": publicKey || "",
+        },
+      });
+      if (!response.ok) throw new Error("Failed to fetch user markets");
+      return response.json();
     },
   });
 

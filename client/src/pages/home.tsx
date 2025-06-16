@@ -13,10 +13,10 @@ export default function Home() {
   const [filterStatus, setFilterStatus] = useState<string>("open");
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
 
-  const { data: markets = [], isLoading } = useQuery({
-    queryKey: ["/api/markets", filterStatus],
+  const { data: allMarkets = [], isLoading } = useQuery({
+    queryKey: ["/api/markets"],
     queryFn: async () => {
-      const response = await fetch(`/api/markets?status=${filterStatus}`, {
+      const response = await fetch("/api/markets", {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch markets");
@@ -24,9 +24,11 @@ export default function Home() {
     },
   });
 
-  const openMarkets = markets.filter((m: Market) => m.status === "open");
-  const activeMarkets = markets.filter((m: Market) => m.status === "active");
-  const settledMarkets = markets.filter((m: Market) => m.status === "settled");
+  const markets = filterStatus === "all" ? allMarkets : allMarkets.filter((m: Market) => m.status === filterStatus);
+
+  const openMarkets = allMarkets.filter((m: Market) => m.status === "open");
+  const activeMarkets = allMarkets.filter((m: Market) => m.status === "active");
+  const settledMarkets = allMarkets.filter((m: Market) => m.status === "settled");
 
   const handleJoinMarket = (market: Market) => {
     setSelectedMarket(market);
@@ -84,8 +86,8 @@ export default function Home() {
           />
           <StatsCard
             title="Total Volume"
-            value={`$${markets.reduce((sum: number, m: Market) => sum + parseFloat(m.stakeAmount) * (m.status === "active" || m.status === "settled" ? 2 : 1), 0).toLocaleString()}`}
-            icon="fas fa-dollar-sign"
+            value={`${allMarkets.reduce((sum: number, m: Market) => sum + parseFloat(m.stakeAmount) * (m.status === "active" || m.status === "settled" ? 2 : 1), 0).toFixed(3)} SOL`}
+            icon="fas fa-coins"
             color="gray"
           />
         </div>

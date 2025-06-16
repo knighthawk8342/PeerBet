@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import type { Market } from "@shared/schema";
 
 interface MarketCardProps {
@@ -9,7 +9,7 @@ interface MarketCardProps {
 }
 
 export function MarketCard({ market, onJoin }: MarketCardProps) {
-  const { user } = useAuth();
+  const { publicKey } = useSolanaWallet();
   
   const getStatusBadge = () => {
     switch (market.status) {
@@ -21,8 +21,8 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
         if (market.settlement === "refund") {
           return <Badge className="bg-gray-100 text-gray-800">Refunded</Badge>;
         }
-        const isWinner = (market.settlement === "creator_wins" && market.creatorId === user?.id) ||
-                        (market.settlement === "counterparty_wins" && market.counterpartyId === user?.id);
+        const isWinner = (market.settlement === "creator_wins" && market.creatorId === publicKey) ||
+                        (market.settlement === "counterparty_wins" && market.counterpartyId === publicKey);
         return (
           <Badge className={isWinner ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
             {isWinner ? "Won" : "Lost"}
@@ -101,7 +101,7 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
         
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-gray-500">Stake Amount</div>
-          <div className="text-lg font-bold text-gray-900">${stakeAmount.toFixed(2)}</div>
+          <div className="text-lg font-bold text-gray-900">{stakeAmount.toFixed(3)} SOL</div>
         </div>
         
         <div className="flex items-center justify-between mb-4">
@@ -109,7 +109,7 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
             {market.status === "settled" ? "Final Pool" : "Potential Payout"}
           </div>
           <div className="text-lg font-semibold text-green-600">
-            ${potentialPayout.toFixed(2)}
+            {potentialPayout.toFixed(3)} SOL
           </div>
         </div>
         
