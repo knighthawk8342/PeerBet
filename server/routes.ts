@@ -90,21 +90,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create market
       const market = await storage.createMarket({
         ...validatedData,
-        creatorId: userId,
+        creatorId: user.id,
         stakeAmount: validatedData.stakeAmount.toString(),
       });
 
       // Deduct stake from user balance
       const newBalance = userBalance - validatedData.stakeAmount;
-      await storage.updateUserBalance(userId, newBalance.toString());
+      await storage.updateUserBalance(user.id, newBalance.toString());
 
       // Create transaction record
       await storage.createTransaction({
-        userId,
-        marketId: market.id,
+        userId: user.id,
         type: "stake",
         amount: validatedData.stakeAmount.toString(),
-        description: `Staked on market: ${market.title}`,
+        description: `Created market: ${validatedData.title}`,
       });
 
       res.json(market);
@@ -119,10 +118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/markets/:id/join', requireWalletAuth, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const user = req.user;
       const marketId = parseInt(req.params.id);
       
-      const user = await storage.getUser(userId);
       const market = await storage.getMarket(marketId);
       
       if (!user) {
@@ -134,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Prevent user from joining their own market
-      if (market.creatorId === userId) {
+      if (market.creatorId === user.id) {
         return res.status(400).json({ message: "Cannot join your own market" });
       }
 
@@ -152,15 +150,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Join market
-      const updatedMarket = await storage.joinMarket(marketId, userId);
+      const updatedMarket = await storage.joinMarket(marketId, user.id);
 
       // Deduct stake from user balance
       const newBalance = userBalance - stakeAmount;
-      await storage.updateUserBalance(userId, newBalance.toString());
+      await storage.updateUserBalance(user.id, newBalance.toString());
 
       // Create transaction record
       await storage.createTransaction({
-        userId,
+        user.id,
         marketId: updatedMarket.id,
         type: "stake",
         amount: stakeAmount.toString(),
@@ -178,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/markets/pending', requireWalletAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(user.id);
       
       if (!user?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
@@ -195,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/markets/:id/settle', requireWalletAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const user = await storage.getUser(userId);
+      const user = await storage.getUser(user.id);
       
       if (!user?.isAdmin) {
         return res.status(403).json({ message: "Admin access required" });
@@ -310,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/user/markets', requireWalletAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const markets = await storage.getUserMarkets(userId);
+      const markets = await storage.getUserMarkets(user.id);
       res.json(markets);
     } catch (error) {
       console.error("Error fetching user markets:", error);
@@ -321,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/user/transactions', requireWalletAuth, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const transactions = await storage.getUserTransactions(userId);
+      const transactions = await storage.getUserTransactions(user.id);
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching user transactions:", error);

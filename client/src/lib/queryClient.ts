@@ -1,5 +1,13 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Get current wallet public key from window global state
+function getCurrentWalletPublicKey(): string | null {
+  if (typeof window !== 'undefined' && (window as any).currentWalletPublicKey) {
+    return (window as any).currentWalletPublicKey;
+  }
+  return null;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -12,9 +20,20 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: Record<string, string> = {};
+  
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const walletPublicKey = getCurrentWalletPublicKey();
+  if (walletPublicKey) {
+    headers["x-wallet-public-key"] = walletPublicKey;
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,7 +48,15 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const headers: Record<string, string> = {};
+    
+    const walletPublicKey = getCurrentWalletPublicKey();
+    if (walletPublicKey) {
+      headers["x-wallet-public-key"] = walletPublicKey;
+    }
+
     const res = await fetch(queryKey[0] as string, {
+      headers,
       credentials: "include",
     });
 

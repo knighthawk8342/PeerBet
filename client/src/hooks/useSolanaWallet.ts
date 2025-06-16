@@ -91,6 +91,9 @@ export function useSolanaWallet() {
         wallet,
       });
 
+      // Set global wallet public key for API authentication
+      (window as any).currentWalletPublicKey = publicKeyString;
+
       return publicKeyString;
     } catch (error) {
       setWalletState(prev => ({ ...prev, connecting: false }));
