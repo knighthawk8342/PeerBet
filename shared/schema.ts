@@ -30,7 +30,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  balance: decimal("balance", { precision: 10, scale: 2 }).default("1000.00"),
+  balance: decimal("balance", { precision: 10, scale: 2 }).default("1000.00").notNull(),
   isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -76,6 +76,7 @@ export const insertMarketSchema = createInsertSchema(markets).pick({
   expiryDate: true,
 }).extend({
   stakeAmount: z.string().transform((val) => parseFloat(val)),
+  expiryDate: z.string().transform((val) => new Date(val)),
 });
 
 export const joinMarketSchema = z.object({

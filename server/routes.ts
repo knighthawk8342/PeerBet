@@ -63,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertMarketSchema.parse(req.body);
       
       // Check if user has sufficient balance
-      const userBalance = parseFloat(user.balance);
+      const userBalance = parseFloat(user.balance || "0");
       if (userBalance < validatedData.stakeAmount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if user has sufficient balance
-      const userBalance = parseFloat(user.balance);
+      const userBalance = parseFloat(user.balance || "0");
       const stakeAmount = parseFloat(market.stakeAmount);
       
       if (userBalance < stakeAmount) {
@@ -207,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Pay creator
         const creator = await storage.getUser(market.creatorId);
         if (creator) {
-          const newBalance = parseFloat(creator.balance) + winnerAmount;
+          const newBalance = parseFloat(creator.balance || "0") + winnerAmount;
           await storage.updateUserBalance(market.creatorId, newBalance.toString());
           
           await storage.createTransaction({
@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Pay counterparty
         const counterparty = await storage.getUser(market.counterpartyId);
         if (counterparty) {
-          const newBalance = parseFloat(counterparty.balance) + winnerAmount;
+          const newBalance = parseFloat(counterparty.balance || "0") + winnerAmount;
           await storage.updateUserBalance(market.counterpartyId, newBalance.toString());
           
           await storage.createTransaction({
@@ -237,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Refund both parties
         const creator = await storage.getUser(market.creatorId);
         if (creator) {
-          const newBalance = parseFloat(creator.balance) + stakeAmount;
+          const newBalance = parseFloat(creator.balance || "0") + stakeAmount;
           await storage.updateUserBalance(market.creatorId, newBalance.toString());
           
           await storage.createTransaction({
@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (market.counterpartyId) {
           const counterparty = await storage.getUser(market.counterpartyId);
           if (counterparty) {
-            const newBalance = parseFloat(counterparty.balance) + stakeAmount;
+            const newBalance = parseFloat(counterparty.balance || "0") + stakeAmount;
             await storage.updateUserBalance(market.counterpartyId, newBalance.toString());
             
             await storage.createTransaction({
