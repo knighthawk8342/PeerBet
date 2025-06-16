@@ -99,8 +99,21 @@ export function SOLPaymentModal({
         const treasuryPubkey = new PublicKey(TREASURY_WALLET);
         const userPubkey = new PublicKey(publicKey);
 
-        // Calculate SOL amount in lamports (9 decimals)
+        // Check wallet balance first
+        const balance = await connection.getBalance(userPubkey);
         const lamportsToSend = Math.floor(parseFloat(amount) * 1_000_000_000);
+        const transactionFee = 5000; // Approximate transaction fee
+        const totalRequired = lamportsToSend + transactionFee;
+        
+        console.log("Wallet balance:", (balance / 1_000_000_000).toFixed(4), "SOL");
+        console.log("Required amount:", (lamportsToSend / 1_000_000_000).toFixed(4), "SOL");
+        console.log("Transaction fee:", (transactionFee / 1_000_000_000).toFixed(4), "SOL");
+        console.log("Total required:", (totalRequired / 1_000_000_000).toFixed(4), "SOL");
+        
+        if (balance < totalRequired) {
+          throw new Error(`Insufficient SOL balance. You have ${(balance / 1_000_000_000).toFixed(4)} SOL but need ${(totalRequired / 1_000_000_000).toFixed(4)} SOL. Please get SOL from the devnet faucet at https://faucet.solana.com`);
+        }
+
         console.log("SOL amount in lamports:", lamportsToSend);
 
         // Create SOL transfer instruction
