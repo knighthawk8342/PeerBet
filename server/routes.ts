@@ -119,6 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user;
       const marketId = parseInt(req.params.id);
+      const { paymentSignature } = req.body;
       
       const market = await storage.getMarket(marketId);
       
@@ -138,28 +139,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Cannot join your own market" });
       }
 
-      const stakeAmount = parseFloat(market.stakeAmount);
-      
-      // Check if user has sufficient balance
-      const userBalance = parseFloat(user.balance || "0");
-      if (userBalance < stakeAmount) {
-        return res.status(400).json({ message: "Insufficient balance to join market" });
+      if (!paymentSignature) {
+        return res.status(400).json({ message: "Payment signature required" });
       }
 
-      // Join the market
+      const stakeAmount = parseFloat(market.stakeAmount);
+
+      // Join the market with payment signature
       const updatedMarket = await storage.joinMarket(marketId, user.id);
 
-      // Deduct stake from user balance
-      const newBalance = userBalance - stakeAmount;
-      await storage.updateUserBalance(user.id, newBalance.toString());
-
-      // Create transaction record
+      // Create transaction record with payment signature
       await storage.createTransaction({
         userId: user.id,
         marketId: updatedMarket.id,
         type: "stake",
         amount: stakeAmount.toString(),
         description: `Joined market: ${updatedMarket.title}`,
+        paymentSignature: paymentSignature,
       });
 
       res.json(updatedMarket);

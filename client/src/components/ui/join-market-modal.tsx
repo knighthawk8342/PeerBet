@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { BasicSOLPayment } from "@/components/payment/BasicSOLPayment";
 import type { Market } from "@shared/schema";
 
 interface JoinMarketModalProps {
@@ -17,14 +18,17 @@ interface JoinMarketModalProps {
 export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProps) {
   const { toast } = useToast();
   const { publicKey, connected } = useSolanaWallet();
+  const [showPayment, setShowPayment] = useState(false);
 
   const joinMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (paymentSignature: string) => {
       if (!market) throw new Error("No market selected");
       if (!connected || !publicKey) throw new Error("Wallet not connected");
       
-      // apiRequest automatically adds wallet public key header
-      await apiRequest("POST", `/api/markets/${market.id}/join`, {});
+      // Send payment signature with join request
+      await apiRequest("POST", `/api/markets/${market.id}/join`, {
+        paymentSignature
+      });
     },
     onSuccess: () => {
       toast({
@@ -34,6 +38,7 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
       queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/markets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setShowPayment(false);
       onClose();
     },
     onError: (error) => {
@@ -56,11 +61,29 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
     },
   });
 
+  const handlePaymentComplete = (signature: string) => {
+    joinMutation.mutate(signature);
+  };
+
   if (!market) return null;
 
   const stakeAmount = parseFloat(market.stakeAmount);
   const platformFee = stakeAmount * 2 * 0.02;
   const potentialWin = stakeAmount * 2 - platformFee;
+
+  // Show payment modal if payment flow is initiated
+  if (showPayment) {
+    return (
+      <BasicSOLPayment
+        isOpen={showPayment}
+        onClose={() => setShowPayment(false)}
+        onPaymentComplete={handlePaymentComplete}
+        amount={market.stakeAmount}
+        marketTitle={market.title}
+        action="join"
+      />
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -110,11 +133,11 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
             </Button>
             <Button
               type="button"
-              onClick={() => joinMutation.mutate()}
+              onClick={() => setShowPayment(true)}
               disabled={joinMutation.isPending}
               className="flex-1 bg-primary hover:bg-primary/90"
             >
-              {joinMutation.isPending ? "Joining..." : "Confirm Join"}
+              {joinMutation.isPending ? "Processing..." : "Pay & Join Market"}
             </Button>
           </div>
         </div>

@@ -38,7 +38,6 @@ export async function apiRequest(
   }
   
   const walletPublicKey = getCurrentWalletPublicKey();
-  console.log("API Request - Wallet Public Key:", walletPublicKey);
   if (walletPublicKey) {
     headers["x-wallet-public-key"] = walletPublicKey;
   }
