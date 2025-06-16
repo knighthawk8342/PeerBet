@@ -1,0 +1,85 @@
+Got it — you’re building a Solana app where a user connects their wallet (ex: Phantom, Backpack, etc), creates a betting market, and during market creation you automatically generate a transaction where the user sends USDC to the treasury wallet. Perfect.
+
+Let’s break down exactly what you need at the wallet level:
+
+✅ The wallet function you need:
+You essentially need:
+signAndSendTransaction()
+
+This is the core wallet function that signs and submits the transaction from the user’s wallet. Most Solana wallet adapters (Phantom, Backpack, Solana Mobile, etc) expose this function via the Solana Wallet Adapter SDK.
+
+✅ Flow of what you’re coding:
+1️⃣ Build the transaction:
+
+Create a Solana Transaction object
+
+Add an instruction to transfer USDC (SPL Token transfer) from the user’s wallet to the treasury wallet
+
+2️⃣ Present the transaction to the user’s wallet for signing:
+
+Use wallet.signAndSendTransaction(transaction)
+
+✅ Code skeleton (TypeScript / Solana JS):
+Assuming you're using @solana/web3.js and @solana/spl-token:
+
+typescript
+Copy
+Edit
+import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
+import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
+
+// Connection to Solana cluster
+const connection = new Connection("https://api.mainnet-beta.solana.com");
+
+// Constants
+const USDC_MINT = new PublicKey("Your_USDC_Mint_Address"); // real USDC address for mainnet: 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU
+const TREASURY_WALLET = new PublicKey("Your_Treasury_Wallet_Address");
+
+// This will be inside your "create market" function
+async function createMarketAndFundTreasury(userPublicKey, wallet) {
+  // Get associated token accounts for USDC
+  const userUSDCAccount = await getAssociatedTokenAddress(USDC_MINT, userPublicKey);
+  const treasuryUSDCAccount = await getAssociatedTokenAddress(USDC_MINT, TREASURY_WALLET);
+
+  // Create transfer instruction (ex: transfer 10 USDC, which is 10_000_000 in 6 decimals)
+  const amount = 10_000_000; // 10 USDC
+  const transferIx = createTransferInstruction(
+    userUSDCAccount,
+    treasuryUSDCAccount,
+    userPublicKey,
+    amount
+  );
+
+  const transaction = new Transaction().add(transferIx);
+  transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  transaction.feePayer = userPublicKey;
+
+  // Let user sign and send
+  const signature = await wallet.signAndSendTransaction(transaction);
+  console.log("Transaction sent:", signature);
+}
+✅ What the wallet itself needs to expose:
+signAndSendTransaction()
+
+publicKey (user’s public key)
+
+Almost every Solana wallet adapter (ex: Phantom, Backpack, Solflare) will expose these via:
+
+javascript
+Copy
+Edit
+wallet.signAndSendTransaction(transaction);
+wallet.publicKey;
+✅ One nuance:
+The user needs to have USDC associated token accounts. If not, you may need to create the associated token account for them using:
+
+typescript
+Copy
+Edit
+createAssociatedTokenAccountInstruction(...)
+✅ Summary:
+You don’t need any special wallet function beyond signAndSendTransaction().
+
+You build the transaction server-side or client-side.
+
+The user signs the transaction in their wallet.

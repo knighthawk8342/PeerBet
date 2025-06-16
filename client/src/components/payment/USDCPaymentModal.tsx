@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { Buffer } from 'buffer';
 
 interface USDCPaymentModalProps {
   isOpen: boolean;
@@ -17,6 +18,9 @@ interface USDCPaymentModalProps {
 
 const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+// Make Buffer available globally for Solana libraries
+window.Buffer = Buffer;
 
 export function USDCPaymentModal({ 
   isOpen, 
@@ -69,10 +73,42 @@ export function USDCPaymentModal({
         description: "Your wallet will open to approve the USDC payment",
       });
 
-      // Execute real USDC token transfer using wallet's native token support
+      // Build and execute real USDC token transfer transaction
       let signature;
       
       try {
+        // Dynamic imports to avoid bundle issues
+        const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
+        const { getAssociatedTokenAddress, createTransferInstruction } = await import('@solana/spl-token');
+
+        const connection = new Connection("https://api.mainnet-beta.solana.com");
+        const usdcMint = new PublicKey(USDC_MINT);
+        const treasuryPubkey = new PublicKey(TREASURY_WALLET);
+        const userPubkey = new PublicKey(publicKey);
+
+        // Calculate USDC amount in smallest units (6 decimals)
+        const usdcAmount = Math.floor(parseFloat(amount) * 1_000_000);
+
+        // Get associated token accounts
+        const userTokenAccount = await getAssociatedTokenAddress(usdcMint, userPubkey);
+        const treasuryTokenAccount = await getAssociatedTokenAddress(usdcMint, treasuryPubkey);
+
+        // Create transfer instruction
+        const transferInstruction = createTransferInstruction(
+          userTokenAccount,
+          treasuryTokenAccount,
+          userPubkey,
+          usdcAmount
+        );
+
+        // Create transaction
+        const transaction = new Transaction().add(transferInstruction);
+        
+        // Get latest blockhash
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = userPubkey;
+
         toast({
           title: "Confirm USDC Transfer",
           description: `Sending ${amount} USDC to treasury wallet`,
@@ -85,18 +121,8 @@ export function USDCPaymentModal({
             await window.solana.connect();
           }
 
-          // Use Phantom's native token transfer method
-          const transferParams = {
-            method: "transfer",
-            params: {
-              to: TREASURY_WALLET,
-              amount: parseFloat(amount),
-              mint: USDC_MINT,
-              decimals: 6
-            }
-          };
-
-          signature = await window.solana.request(transferParams);
+          // Sign and send the USDC transfer transaction
+          signature = await window.solana.signAndSendTransaction(transaction);
           
         } else if (window.solflare && window.solflare.isSolflare) {
           // Solflare wallet approach
@@ -104,21 +130,16 @@ export function USDCPaymentModal({
             await window.solflare.connect();
           }
 
-          // Use Solflare's native token transfer method
-          const transferParams = {
-            method: "transfer",
-            params: {
-              to: TREASURY_WALLET,
-              amount: parseFloat(amount),
-              mint: USDC_MINT,
-              decimals: 6
-            }
-          };
-
-          signature = await window.solflare.request(transferParams);
+          // Sign and send the USDC transfer transaction
+          signature = await window.solflare.signAndSendTransaction(transaction);
           
         } else {
           throw new Error("No compatible Solana wallet found. Please install Phantom or Solflare.");
+        }
+
+        // Wait for transaction confirmation
+        if (signature) {
+          await connection.confirmTransaction(signature);
         }
 
         // Validate signature was created
