@@ -42,7 +42,7 @@ export default function Admin() {
   // Settlement mutation
   const settleMutation = useMutation({
     mutationFn: async ({ marketId, settlement }: { marketId: number, settlement: string }) => {
-      return await apiRequest(`/api/admin/markets/${marketId}/settle`, "POST", { settlement });
+      return await apiRequest("POST", `/api/admin/markets/${marketId}/settle`, { settlement });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
