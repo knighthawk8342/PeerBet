@@ -6,9 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
-import Home from "@/pages/simple-home";
+import Home from "@/pages/home";
 import CreateMarket from "@/pages/create-market";
-import Dashboard from "@/pages/simple-dashboard";
+import Dashboard from "@/pages/dashboard";
 import Admin from "@/pages/admin";
 
 function Router() {
