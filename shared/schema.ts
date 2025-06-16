@@ -77,9 +77,9 @@ export const insertMarketSchema = createInsertSchema(markets).pick({
   expiryDate: true,
   paymentSignature: true,
 }).extend({
-  stakeAmount: z.string().transform((val) => parseFloat(val)),
+  stakeAmount: z.string().transform((val) => parseFloat(val)).refine((val) => val >= 0.01, "Minimum stake amount is 0.01 SOL"),
   expiryDate: z.string().transform((val) => new Date(val)),
-  paymentSignature: z.string().min(1, "USDC payment signature is required"),
+  paymentSignature: z.string().min(1, "SOL payment signature is required"),
 });
 
 export const joinMarketSchema = z.object({

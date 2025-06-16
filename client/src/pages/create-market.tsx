@@ -20,7 +20,10 @@ const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   category: z.string().min(1, "Category is required"),
-  stakeAmount: z.string().min(1, "Stake amount is required"),
+  stakeAmount: z.string().min(1, "Stake amount is required").refine((val) => {
+    const num = parseFloat(val);
+    return num >= 0.01;
+  }, "Minimum stake amount is 0.01 SOL"),
   expiryDate: z.string().min(1, "Expiry date is required"),
 });
 
@@ -189,13 +192,13 @@ export default function CreateMarket() {
                         name="stakeAmount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Stake Amount ($)</FormLabel>
+                            <FormLabel>Stake Amount (SOL)</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
-                                min="1"
+                                min="0.01"
                                 step="0.01"
-                                placeholder="100.00"
+                                placeholder="0.10"
                                 {...field}
                                 onChange={(e) => {
                                   const value = e.target.value;
@@ -259,16 +262,16 @@ export default function CreateMarket() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Your stake:</span>
-                  <span className="font-medium">${stakeAmount.toFixed(2)}</span>
+                  <span className="font-medium">{stakeAmount.toFixed(2)} SOL</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Platform fee (2%):</span>
-                  <span className="font-medium">${platformFee.toFixed(2)}</span>
+                  <span className="font-medium">{platformFee.toFixed(2)} SOL</span>
                 </div>
                 <div className="border-t pt-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-900 font-medium">Winner takes:</span>
-                    <span className="font-semibold text-green-600">${winnerAmount.toFixed(2)}</span>
+                    <span className="font-semibold text-green-600">{winnerAmount.toFixed(2)} SOL</span>
                   </div>
                 </div>
                 
@@ -282,7 +285,7 @@ export default function CreateMarket() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
                   <p className="text-sm text-green-800">
                     <i className="fas fa-dollar-sign mr-1"></i>
-                    Payment required: {stakeAmount.toFixed(2)} USDC on Solana
+                    Payment required: {stakeAmount.toFixed(2)} SOL on Solana
                   </p>
                 </div>
               </CardContent>
