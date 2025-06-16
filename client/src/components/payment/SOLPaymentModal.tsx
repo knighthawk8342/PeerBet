@@ -207,7 +207,7 @@ export function SOLPaymentModal({
     if (!transactionHash.trim()) {
       toast({
         title: "Transaction Hash Required",
-        description: "Please enter the transaction hash from your USDC transfer",
+        description: "Please enter the transaction hash from your SOL transfer",
         variant: "destructive",
       });
       return;
@@ -261,11 +261,11 @@ export function SOLPaymentModal({
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">Token:</label>
-                        <div className="font-mono text-sm bg-gray-100 p-2 rounded">USDC</div>
+                        <div className="font-mono text-sm bg-gray-100 p-2 rounded">SOL</div>
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">Amount:</label>
-                        <div className="font-mono text-sm bg-gray-100 p-2 rounded">{amount} USDC</div>
+                        <div className="font-mono text-sm bg-gray-100 p-2 rounded">{amount} SOL</div>
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">Treasury Address:</label>
@@ -294,10 +294,10 @@ export function SOLPaymentModal({
                   </div>
                 </div>
                 <h4 className="text-center font-medium text-green-900 mb-2">
-                  Send USDC via Wallet
+                  Send SOL via Wallet
                 </h4>
                 <p className="text-sm text-green-800 text-center mb-4">
-                  Click below to automatically prompt your connected wallet to send {amount} USDC to the treasury
+                  Click below to automatically prompt your connected wallet to send {amount} SOL to the treasury
                 </p>
                 <Button
                   onClick={handleSendUSDC}
@@ -305,7 +305,7 @@ export function SOLPaymentModal({
                   size="lg"
                 >
                   <i className="fas fa-paper-plane mr-2"></i>
-                  Send {amount} USDC Now
+                  Send {amount} SOL Now
                 </Button>
               </div>
 
@@ -317,7 +317,7 @@ export function SOLPaymentModal({
                   <div className="mt-3 space-y-3">
                     <div>
                       <label className="text-sm text-gray-600 mb-1 block">
-                        If you sent USDC manually, enter transaction hash:
+                        If you sent SOL manually, enter transaction hash:
                       </label>
                       <input
                         type="text"
