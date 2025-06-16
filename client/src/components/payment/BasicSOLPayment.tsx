@@ -61,8 +61,8 @@ export function BasicSOLPayment({
       // Create transaction with proper setup
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use devnet for reliable connection
-      const connection = new Connection("https://api.devnet.solana.com");
+      // Use mainnet where your actual SOL balance is
+      const connection = new Connection("https://api.mainnet-beta.solana.com");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);

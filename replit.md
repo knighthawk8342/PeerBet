@@ -106,7 +106,7 @@ Changelog:
 - June 16, 2025. Fixed transaction signing and sending flow for actual SOL transfers
 - June 16, 2025. Added balance checking and proper error handling for insufficient funds
 - June 16, 2025. Fixed transaction blockhash requirements for Phantom wallet compatibility
-- June 16, 2025. Simplified payment flow to use devnet for reliable blockchain access
+- June 16, 2025. Restored mainnet configuration for real SOL transactions with user's actual balance
 ```
 
 ## User Preferences
