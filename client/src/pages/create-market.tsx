@@ -168,9 +168,9 @@ export default function CreateMarket() {
                                 placeholder="100.00"
                                 {...field}
                                 onChange={(e) => {
-                                  const value = parseFloat(e.target.value) || 0;
+                                  const value = e.target.value;
                                   field.onChange(value);
-                                  setStakeAmount(value);
+                                  setStakeAmount(parseFloat(value) || 0);
                                 }}
                               />
                             </FormControl>
