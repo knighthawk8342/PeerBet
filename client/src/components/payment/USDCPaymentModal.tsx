@@ -71,7 +71,7 @@ export function SOLPaymentModal({
 
       toast({
         title: "Opening Wallet",
-        description: "Your wallet will open to approve the USDC payment",
+        description: "Your wallet will open to approve the SOL payment",
       });
 
       // Build and execute SOL transfer transaction
@@ -133,7 +133,7 @@ export function SOLPaymentModal({
           // Sign and send the transfer transaction
           console.log("Requesting transaction signature from Phantom...");
           const result = await window.solana.signAndSendTransaction(transaction);
-          signature = typeof result === 'string' ? result : result.signature;
+          signature = typeof result === 'string' ? result : (result as any).signature || result;
           console.log("Transaction signature:", signature);
           
         } else if (window.solflare && window.solflare.isSolflare) {
@@ -147,7 +147,7 @@ export function SOLPaymentModal({
           // Sign and send the transfer transaction
           console.log("Requesting transaction signature from Solflare...");
           const result = await window.solflare.signAndSendTransaction(transaction);
-          signature = typeof result === 'string' ? result : result.signature;
+          signature = typeof result === 'string' ? result : (result as any).signature || result;
           console.log("Transaction signature:", signature);
           
         } else {
@@ -184,7 +184,7 @@ export function SOLPaymentModal({
       setPaymentStatus("completed");
       toast({
         title: "Payment Complete",
-        description: `Successfully sent ${amount} USDC to treasury wallet`,
+        description: `Successfully sent ${amount} SOL to treasury wallet`,
       });
       
       setTimeout(() => {
@@ -233,7 +233,7 @@ export function SOLPaymentModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>USDC Payment Required</DialogTitle>
+          <DialogTitle>SOL Payment Required</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -244,14 +244,14 @@ export function SOLPaymentModal({
             <p className="text-sm text-blue-800 mb-2">{marketTitle}</p>
             <div className="flex items-center justify-between">
               <span className="text-sm text-blue-700">Amount Required:</span>
-              <Badge className="bg-blue-100 text-blue-800">{amount} USDC</Badge>
+              <Badge className="bg-blue-100 text-blue-800">{amount} SOL</Badge>
             </div>
           </div>
 
           {paymentStatus === "pending" && (
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">Send USDC to Treasury Wallet</h4>
+                <h4 className="font-medium text-gray-900 mb-2">Send SOL to Treasury Wallet</h4>
                 <Card>
                   <CardContent className="p-4">
                     <div className="space-y-3">

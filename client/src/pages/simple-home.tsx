@@ -214,8 +214,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* USDC Payment Modal */}
-        <USDCPaymentModal
+        {/* SOL Payment Modal */}
+        <SOLPaymentModal
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
           onPaymentComplete={handlePaymentComplete}
