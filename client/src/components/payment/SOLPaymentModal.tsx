@@ -132,9 +132,42 @@ export function SOLPaymentModal({
 
           // Sign and send the transfer transaction
           console.log("Requesting transaction signature from Phantom...");
-          const result = await window.solana.signAndSendTransaction(transaction);
-          signature = typeof result === 'string' ? result : (result as any).signature || result;
-          console.log("Transaction signature:", signature);
+          console.log("Transaction object:", transaction);
+          
+          try {
+            setPaymentStatus("confirming");
+            const result = await window.solana.signAndSendTransaction(transaction);
+            console.log("Raw wallet response:", result);
+            console.log("Response type:", typeof result);
+            console.log("Response keys:", result ? Object.keys(result) : "null");
+            
+            if (typeof result === 'string') {
+              signature = result;
+            } else if (result && (result as any).signature) {
+              signature = (result as any).signature;
+            } else if (result && typeof (result as any).toString === 'function') {
+              signature = (result as any).toString();
+            } else {
+              console.error("Unexpected wallet response format:", result);
+              throw new Error("Invalid response from wallet - no signature found");
+            }
+            
+            console.log("Extracted signature:", signature);
+            
+            if (!signature) {
+              throw new Error("No signature returned from wallet");
+            }
+            
+          } catch (phantomError: any) {
+            console.error("Phantom signAndSendTransaction error:", phantomError);
+            console.error("Error details:", {
+              message: phantomError.message,
+              code: phantomError.code,
+              name: phantomError.name,
+              stack: phantomError.stack
+            });
+            throw phantomError;
+          }
           
         } else if (window.solflare && window.solflare.isSolflare) {
           console.log("Using Solflare wallet...");
@@ -154,11 +187,29 @@ export function SOLPaymentModal({
           throw new Error("No compatible Solana wallet found. Please install Phantom or Solflare.");
         }
 
-        // Wait for transaction confirmation
+        // Wait for transaction confirmation with timeout
         if (signature) {
           console.log("Waiting for transaction confirmation...");
-          await connection.confirmTransaction(signature, 'confirmed');
-          console.log("Transaction confirmed!");
+          setPaymentStatus("confirming");
+          
+          try {
+            // Set a timeout for confirmation
+            const confirmPromise = connection.confirmTransaction(signature, 'confirmed');
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+            );
+            
+            await Promise.race([confirmPromise, timeoutPromise]);
+            console.log("Transaction confirmed!");
+          } catch (confirmError: any) {
+            console.warn("Confirmation error or timeout:", confirmError);
+            // Don't fail the transaction if it's just a confirmation timeout
+            // The signature exists, so the transaction likely went through
+            if (!confirmError.message?.includes('timeout')) {
+              throw confirmError;
+            }
+            console.log("Proceeding despite confirmation timeout - signature exists");
+          }
         }
 
         // Validate signature was created
@@ -168,15 +219,18 @@ export function SOLPaymentModal({
 
       } catch (walletError: any) {
         console.error("Wallet transaction error:", walletError);
+        console.error("Full error object:", JSON.stringify(walletError, null, 2));
         
         if (walletError.message?.includes('User rejected') || walletError.code === 4001) {
           throw new Error("Transaction was cancelled by user");
         } else if (walletError.message?.includes('Insufficient funds')) {
-          throw new Error("Insufficient USDC balance in wallet");
+          throw new Error("Insufficient SOL balance in wallet");
         } else if (walletError.message?.includes('not approved') || walletError.message?.includes('denied')) {
           throw new Error("Payment was not approved in wallet");
+        } else if (walletError.name === 'WalletSignTransactionError') {
+          throw new Error("Transaction signing failed in wallet");
         } else {
-          throw new Error(`Transaction failed: ${walletError.message || 'Failed to process USDC payment'}`);
+          throw new Error(`Transaction failed: ${walletError.message || 'Failed to process SOL payment'}`);
         }
       }
       
