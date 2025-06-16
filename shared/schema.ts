@@ -59,6 +59,7 @@ export const transactions = pgTable("transactions", {
   type: varchar("type", { length: 20 }).notNull(), // stake, payout, fee, refund
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
+  paymentSignature: text("payment_signature"), // SOL transaction signature
   createdAt: timestamp("created_at").defaultNow(),
 });
 
