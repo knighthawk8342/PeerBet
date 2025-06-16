@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { Connection, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
+import { createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 interface USDCPaymentModalProps {
   isOpen: boolean;
@@ -68,10 +70,13 @@ export function USDCPaymentModal({
         description: "Your wallet will open to approve the USDC payment",
       });
 
-      // Direct USDC transfer using Solana Pay protocol
+      // Create actual USDC transfer transaction
       let signature;
       
       try {
+        const connection = new Connection("https://api.mainnet-beta.solana.com");
+        const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+        
         // Check for Phantom wallet
         if (window.solana && window.solana.isPhantom) {
           // Ensure Phantom is connected
@@ -79,73 +84,74 @@ export function USDCPaymentModal({
             await window.solana.connect();
           }
           
-          // Try to trigger Phantom's built-in transfer via request method
-          try {
-            const transferRequest = {
-              method: 'transfer',
-              params: {
-                recipient: TREASURY_WALLET,
-                amount: parseFloat(amount),
-                token: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC mint
-                cluster: 'mainnet-beta'
-              }
-            };
-            
-            // This should trigger Phantom's transfer UI
-            if (window.solana.request) {
-              const result = await window.solana.request(transferRequest);
-              signature = result.signature || result;
-            } else {
-              throw new Error("Phantom request method not available");
-            }
-          } catch (requestError) {
-            // Fallback: Use signMessage to trigger wallet popup and simulate transfer
-            const message = `Approve USDC transfer: ${amount} USDC to ${TREASURY_WALLET.substring(0, 8)}...`;
-            const encodedMessage = new TextEncoder().encode(message);
-            
-            // This will definitely open Phantom for signing
-            const signResult = await window.solana.signMessage(encodedMessage, "utf8");
-            
-            // Convert signature to hex string
-            signature = Array.from(signResult.signature).map(b => b.toString(16).padStart(2, '0')).join('');
-            
-            toast({
-              title: "Transfer Simulation",
-              description: `Simulated ${amount} USDC transfer (signed approval received)`,
-            });
-          }
+          const fromPubkey = new PublicKey(publicKey);
+          const toPubkey = new PublicKey(TREASURY_WALLET);
+          
+          // Get associated token accounts for USDC
+          const fromTokenAccount = await getAssociatedTokenAddress(USDC_MINT, fromPubkey);
+          const toTokenAccount = await getAssociatedTokenAddress(USDC_MINT, toPubkey);
+          
+          // Convert amount to smallest unit (USDC has 6 decimals)
+          const transferAmount = Math.floor(parseFloat(amount) * 1_000_000);
+          
+          // Create transaction
+          const transaction = new Transaction();
+          
+          // Add USDC transfer instruction
+          transaction.add(
+            createTransferInstruction(
+              fromTokenAccount,
+              toTokenAccount,
+              fromPubkey,
+              transferAmount,
+              [],
+              TOKEN_PROGRAM_ID
+            )
+          );
+          
+          // Get latest blockhash
+          const { blockhash } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = fromPubkey;
+          
+          // Sign and send transaction through Phantom
+          signature = await window.solana.signAndSendTransaction(transaction);
+          
+          // Wait for confirmation
+          await connection.confirmTransaction(signature);
           
         } else if (window.solflare && window.solflare.isSolflare) {
-          // Solflare wallet transaction
+          // Solflare wallet USDC transaction
           if (!window.solflare.isConnected) {
             await window.solflare.connect();
           }
           
-          // Similar approach for Solflare
-          try {
-            const transferRequest = {
-              method: 'transfer',
-              params: {
-                recipient: TREASURY_WALLET,
-                amount: parseFloat(amount),
-                token: 'USDC'
-              }
-            };
-            
-            if (window.solflare.request) {
-              const result = await window.solflare.request(transferRequest);
-              signature = result.signature || result;
-            } else {
-              throw new Error("Solflare request method not available");
-            }
-          } catch (requestError) {
-            // Fallback to message signing
-            const message = `Approve USDC transfer: ${amount} USDC to ${TREASURY_WALLET.substring(0, 8)}...`;
-            const encodedMessage = new TextEncoder().encode(message);
-            
-            const signResult = await window.solflare.signMessage(encodedMessage, "utf8");
-            signature = Array.from(signResult.signature).map(b => b.toString(16).padStart(2, '0')).join('');
-          }
+          const fromPubkey = new PublicKey(publicKey);
+          const toPubkey = new PublicKey(TREASURY_WALLET);
+          
+          const fromTokenAccount = await getAssociatedTokenAddress(USDC_MINT, fromPubkey);
+          const toTokenAccount = await getAssociatedTokenAddress(USDC_MINT, toPubkey);
+          
+          const transferAmount = Math.floor(parseFloat(amount) * 1_000_000);
+          
+          const transaction = new Transaction();
+          transaction.add(
+            createTransferInstruction(
+              fromTokenAccount,
+              toTokenAccount,
+              fromPubkey,
+              transferAmount,
+              [],
+              TOKEN_PROGRAM_ID
+            )
+          );
+          
+          const { blockhash } = await connection.getLatestBlockhash();
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = fromPubkey;
+          
+          signature = await window.solflare.signAndSendTransaction(transaction);
+          await connection.confirmTransaction(signature);
           
         } else {
           throw new Error("No compatible Solana wallet found. Please install Phantom or Solflare.");
