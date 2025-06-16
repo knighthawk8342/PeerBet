@@ -76,7 +76,7 @@ export default function CreateMarket() {
   });
 
   const onSubmit = (data: any) => {
-    if (!connected) {
+    if (!connected || !publicKey) {
       toast({
         title: "Wallet Required",
         description: "Please connect your Solana wallet to create a market",
@@ -85,14 +85,24 @@ export default function CreateMarket() {
       return;
     }
 
+    // Ensure wallet public key is set for API authentication
+    if (typeof window !== 'undefined') {
+      (window as any).currentWalletPublicKey = publicKey;
+    }
+
     // Store form data and open payment modal
     setPendingMarketData(data);
     setIsPaymentModalOpen(true);
   };
 
   const handlePaymentComplete = (paymentSignature: string) => {
-    if (pendingMarketData) {
-      // Process market creation after successful USDC payment
+    if (pendingMarketData && publicKey) {
+      // Set wallet public key in global state for API authentication
+      if (typeof window !== 'undefined') {
+        (window as any).currentWalletPublicKey = publicKey;
+      }
+      
+      // Process market creation after successful SOL payment
       const dataWithPayment = {
         ...pendingMarketData,
         paymentSignature
