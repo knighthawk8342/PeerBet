@@ -95,7 +95,7 @@ export function SOLPaymentModal({
         // Dynamic imports to avoid bundle issues
         const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
 
-        const connection = new Connection("https://api.mainnet-beta.solana.com");
+        const connection = new Connection("https://solana-api.projectserum.com");
         const treasuryPubkey = new PublicKey(TREASURY_WALLET);
         const userPubkey = new PublicKey(publicKey);
 

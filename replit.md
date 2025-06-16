@@ -100,6 +100,11 @@ BetMatch is a prediction market platform built on Solana blockchain technology t
 ```
 Changelog:
 - June 16, 2025. Initial setup
+- June 16, 2025. Migrated from USDC to SOL payments (0.01 SOL minimum stake)
+- June 16, 2025. Switched from devnet to mainnet for real SOL transactions
+- June 16, 2025. Implemented wallet-based authentication (removed traditional sessions)
+- June 16, 2025. Fixed transaction signing and sending flow for actual SOL transfers
+- June 16, 2025. Added balance checking and proper error handling for insufficient funds
 ```
 
 ## User Preferences
