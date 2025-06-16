@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import type { Market } from "@shared/schema";
 
 interface JoinMarketModalProps {
@@ -15,10 +16,14 @@ interface JoinMarketModalProps {
 
 export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProps) {
   const { toast } = useToast();
+  const { publicKey, connected } = useSolanaWallet();
 
   const joinMutation = useMutation({
     mutationFn: async () => {
       if (!market) throw new Error("No market selected");
+      if (!connected || !publicKey) throw new Error("Wallet not connected");
+      
+      // apiRequest automatically adds wallet public key header
       await apiRequest("POST", `/api/markets/${market.id}/join`, {});
     },
     onSuccess: () => {
@@ -75,15 +80,15 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Required stake:</span>
-              <span className="font-semibold">${stakeAmount.toFixed(2)}</span>
+              <span className="font-semibold">{stakeAmount.toFixed(3)} SOL</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Platform fee (2%):</span>
-              <span className="font-medium">${platformFee.toFixed(2)}</span>
+              <span className="font-medium">{platformFee.toFixed(3)} SOL</span>
             </div>
             <div className="flex justify-between border-t pt-2">
               <span className="text-gray-900 font-medium">If you win:</span>
-              <span className="font-semibold text-green-600">${potentialWin.toFixed(2)}</span>
+              <span className="font-semibold text-green-600">{potentialWin.toFixed(3)} SOL</span>
             </div>
           </div>
           

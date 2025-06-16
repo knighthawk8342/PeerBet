@@ -34,24 +34,18 @@ export default function Dashboard() {
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
     queryKey: ["/api/user/transactions"],
-    enabled: isAuthenticated,
-    retry: (failureCount, error) => {
-      if (isUnauthorizedError(error as Error)) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    enabled: connected && !!publicKey,
   });
 
-  if (isLoading || !isAuthenticated) {
+  if (marketsLoading || transactionsLoading || !connected) {
     return <div>Loading...</div>;
   }
 
   const activeMarkets = userMarkets.filter((m: Market) => m.status === "active");
   const completedMarkets = userMarkets.filter((m: Market) => m.status === "settled");
   const wins = completedMarkets.filter((m: Market) => 
-    (m.settlement === "creator_wins" && m.creatorId === user?.id) ||
-    (m.settlement === "counterparty_wins" && m.counterpartyId === user?.id)
+    (m.settlement === "creator_wins" && m.creatorId === publicKey) ||
+    (m.settlement === "counterparty_wins" && m.counterpartyId === publicKey)
   );
   const winRate = completedMarkets.length > 0 ? Math.round((wins.length / completedMarkets.length) * 100) : 0;
 
