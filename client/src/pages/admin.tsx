@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Market } from "@shared/schema";
-import { format } from "date-fns";
+
 
 export default function Admin() {
   const { connected, publicKey } = useSolanaWallet();
@@ -96,11 +96,11 @@ export default function Admin() {
     );
   }
 
-  const activeMarkets = allMarkets.filter((m: Market) => m.status === "active");
-  const settledMarkets = allMarkets.filter((m: Market) => m.status === "settled");
-  const openMarkets = allMarkets.filter((m: Market) => m.status === "open");
+  const activeMarkets = (allMarkets as Market[]).filter((m: Market) => m.status === "active");
+  const settledMarkets = (allMarkets as Market[]).filter((m: Market) => m.status === "settled");
+  const openMarkets = (allMarkets as Market[]).filter((m: Market) => m.status === "open");
 
-  const totalVolume = allMarkets.reduce((sum: number, m: Market) => {
+  const totalVolume = (allMarkets as Market[]).reduce((sum: number, m: Market) => {
     const stakeAmount = parseFloat(m.stakeAmount);
     const multiplier = m.status === "active" || m.status === "settled" ? 2 : 1;
     return sum + (stakeAmount * multiplier);
@@ -140,7 +140,7 @@ export default function Admin() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {allMarkets.length}
+                {(allMarkets as Market[]).length}
               </div>
             </CardContent>
           </Card>
