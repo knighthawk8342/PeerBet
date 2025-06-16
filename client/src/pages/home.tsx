@@ -6,22 +6,34 @@ import { MarketCard } from "@/components/ui/market-card";
 import { JoinMarketModal } from "@/components/ui/join-market-modal";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import type { Market } from "@shared/schema";
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const [filterStatus, setFilterStatus] = useState<string>("open");
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
+  const { publicKey } = useSolanaWallet();
 
   const { data: allMarkets = [], isLoading } = useQuery({
     queryKey: ["/api/markets"],
     queryFn: async () => {
+      const headers: Record<string, string> = {};
+      if (publicKey) {
+        headers["x-wallet-public-key"] = publicKey;
+      }
+      
       const response = await fetch("/api/markets", {
         credentials: "include",
+        headers,
       });
       if (!response.ok) throw new Error("Failed to fetch markets");
-      return response.json();
+      const data = await response.json();
+      console.log("Fetched markets data:", data);
+      return data;
     },
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const markets = filterStatus === "all" ? allMarkets : allMarkets.filter((m: Market) => m.status === filterStatus);
