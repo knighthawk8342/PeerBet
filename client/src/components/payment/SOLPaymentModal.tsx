@@ -95,7 +95,7 @@ export function SOLPaymentModal({
         // Dynamic imports to avoid bundle issues
         const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
 
-        const connection = new Connection("https://api.devnet.solana.com");
+        const connection = new Connection("https://api.mainnet-beta.solana.com");
         const treasuryPubkey = new PublicKey(TREASURY_WALLET);
         const userPubkey = new PublicKey(publicKey);
 
@@ -111,7 +111,7 @@ export function SOLPaymentModal({
         console.log("Total required:", (totalRequired / 1_000_000_000).toFixed(4), "SOL");
         
         if (balance < totalRequired) {
-          throw new Error(`Insufficient SOL balance. You have ${(balance / 1_000_000_000).toFixed(4)} SOL but need ${(totalRequired / 1_000_000_000).toFixed(4)} SOL. Please get SOL from the devnet faucet at https://faucet.solana.com`);
+          throw new Error(`Insufficient SOL balance. You have ${(balance / 1_000_000_000).toFixed(4)} SOL but need ${(totalRequired / 1_000_000_000).toFixed(4)} SOL. Please add SOL to your wallet from an exchange.`);
         }
 
         console.log("SOL amount in lamports:", lamportsToSend);
