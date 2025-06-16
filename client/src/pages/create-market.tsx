@@ -51,13 +51,14 @@ export default function CreateMarket() {
         ...data,
         stakeAmount: data.stakeAmount.toString(),
         expiryDate: data.expiryDate,
+        paymentSignature: data.paymentSignature, // Include USDC transaction signature
       };
       await apiRequest("POST", "/api/markets", transformedData);
     },
     onSuccess: () => {
       toast({
         title: "Market Created",
-        description: "Your market has been created successfully!",
+        description: "Your market has been created successfully after USDC payment confirmation!",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
       setLocation("/");
@@ -86,11 +87,16 @@ export default function CreateMarket() {
     setIsPaymentModalOpen(true);
   };
 
-  const handlePaymentComplete = () => {
+  const handlePaymentComplete = (paymentSignature: string) => {
     if (pendingMarketData) {
-      // Process market creation after payment
-      createMarketMutation.mutate(pendingMarketData);
+      // Process market creation after successful USDC payment
+      const dataWithPayment = {
+        ...pendingMarketData,
+        paymentSignature
+      };
+      createMarketMutation.mutate(dataWithPayment);
       setPendingMarketData(null);
+      setIsPaymentModalOpen(false);
     }
   };
 
