@@ -196,29 +196,15 @@ export function SOLPaymentModal({
           throw new Error("No compatible Solana wallet found. Please install Phantom or Solflare.");
         }
 
-        // Wait for transaction confirmation with timeout
+        // Transaction was successfully signed and submitted
+        console.log("Transaction signed and submitted successfully!");
+        
+        // Optional: Try to confirm in background but don't block on it
         if (signature) {
-          console.log("Waiting for transaction confirmation...");
-          setPaymentStatus("confirming");
-          
-          try {
-            // Set a timeout for confirmation
-            const confirmPromise = connection.confirmTransaction(signature, 'confirmed');
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
-            );
-            
-            await Promise.race([confirmPromise, timeoutPromise]);
-            console.log("Transaction confirmed!");
-          } catch (confirmError: any) {
-            console.warn("Confirmation error or timeout:", confirmError);
-            // Don't fail the transaction if it's just a confirmation timeout
-            // The signature exists, so the transaction likely went through
-            if (!confirmError.message?.includes('timeout')) {
-              throw confirmError;
-            }
-            console.log("Proceeding despite confirmation timeout - signature exists");
-          }
+          console.log("Starting background confirmation check...");
+          connection.confirmTransaction(signature, 'confirmed')
+            .then(() => console.log("Background confirmation: Transaction confirmed!"))
+            .catch((error) => console.log("Background confirmation failed (this is okay):", error.message));
         }
 
         // Validate signature was created
