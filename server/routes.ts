@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMarketSchema, joinMarketSchema, settleMarketSchema } from "@shared/schema";
+import { insertMarketSchema, joinMarketSchema, settleMarketRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import type { RequestHandler } from "express";
 
@@ -170,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user;
       const marketId = parseInt(req.params.id);
-      const { settlement } = settleMarketSchema.omit({ marketId: true }).parse(req.body);
+      const { settlement } = settleMarketRequestSchema.parse(req.body);
 
       // Admin wallet addresses - only these can settle markets
       const adminWallets = [
@@ -239,16 +239,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Record platform fee transaction
-      if (settlement !== "refund") {
-        await storage.createTransaction({
-          userId: "platform",
-          marketId: settledMarket.id,
-          type: "fee",
-          amount: platformFee.toString(),
-          description: `Platform fee for market: ${settledMarket.title}`,
-        });
-      }
+      // Record platform fee transaction (skip for now since platform user doesn't exist)
+      // TODO: Create platform user or handle fees differently
+      // if (settlement !== "refund") {
+      //   await storage.createTransaction({
+      //     userId: "platform",
+      //     marketId: settledMarket.id,
+      //     type: "fee",
+      //     amount: platformFee.toString(),
+      //     description: `Platform fee for market: ${settledMarket.title}`,
+      //   });
+      // }
 
       res.json({ 
         market: settledMarket,

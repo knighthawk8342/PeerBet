@@ -91,3 +91,7 @@ export const settleMarketSchema = z.object({
   marketId: z.number(),
   settlement: z.enum(["creator_wins", "counterparty_wins", "refund"]),
 });
+
+export const settleMarketRequestSchema = z.object({
+  settlement: z.enum(["creator_wins", "counterparty_wins", "refund"]),
+});
