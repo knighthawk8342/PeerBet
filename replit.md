@@ -107,6 +107,7 @@ Changelog:
 - June 16, 2025. Added balance checking and proper error handling for insufficient funds
 - June 16, 2025. Fixed transaction blockhash requirements for Phantom wallet compatibility
 - June 16, 2025. Restored mainnet configuration for real SOL transactions with user's actual balance
+- June 16, 2025. Updated frontend to display real database market data with SOL amounts instead of USD
 ```
 
 ## User Preferences

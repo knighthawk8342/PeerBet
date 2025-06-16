@@ -34,7 +34,7 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
   };
 
   const getActionButton = () => {
-    if (market.status === "open" && market.creatorId !== user?.id) {
+    if (market.status === "open" && market.creatorId !== publicKey) {
       return (
         <Button 
           className="w-full bg-primary hover:bg-primary/90"
@@ -61,7 +61,7 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
       );
     }
     
-    if (market.creatorId === user?.id) {
+    if (market.creatorId === publicKey) {
       return (
         <Button variant="outline" className="w-full" disabled>
           Your Market
