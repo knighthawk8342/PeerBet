@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { Buffer } from 'buffer';
 
-interface USDCPaymentModalProps {
+interface SOLPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPaymentComplete?: (signature: string) => void;
@@ -16,21 +16,21 @@ interface USDCPaymentModalProps {
   action: "create" | "join";
 }
 
-// Use a different treasury wallet (not the user's wallet)
-const TREASURY_WALLET = "HN7cABqLq46Es1jh92dQQisAq662SmxELLLsHHe4YWrH"; // Different treasury address
-const USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"; // Devnet USDC for testing
+// Treasury wallet for SOL payments
+const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
+const USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"; // Keep for potential future use
 
 // Make Buffer available globally for Solana libraries
 window.Buffer = Buffer;
 
-export function USDCPaymentModal({ 
+export function SOLPaymentModal({ 
   isOpen, 
   onClose, 
   onPaymentComplete, 
   amount, 
   marketTitle, 
   action 
-}: USDCPaymentModalProps) {
+}: SOLPaymentModalProps) {
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "confirming" | "completed" | "failed">("pending");
   const [transactionHash, setTransactionHash] = useState<string>("");
   const { toast } = useToast();
@@ -74,43 +74,31 @@ export function USDCPaymentModal({
         description: "Your wallet will open to approve the USDC payment",
       });
 
-      // Build and execute real USDC token transfer transaction
+      // Build and execute SOL transfer transaction
       let signature;
       
       try {
-        console.log("Starting USDC transfer process...");
-        console.log("Amount:", amount, "USDC");
+        console.log("Starting SOL transfer process...");
+        console.log("Amount:", amount, "SOL");
         console.log("User public key:", publicKey);
         console.log("Treasury wallet:", TREASURY_WALLET);
-        console.log("USDC mint:", USDC_MINT);
 
         // Dynamic imports to avoid bundle issues
         const { Connection, PublicKey, Transaction } = await import('@solana/web3.js');
-        const { getAssociatedTokenAddress, createTransferInstruction, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
 
         const connection = new Connection("https://api.devnet.solana.com");
-        const usdcMint = new PublicKey(USDC_MINT);
         const treasuryPubkey = new PublicKey(TREASURY_WALLET);
         const userPubkey = new PublicKey(publicKey);
 
-        // Calculate USDC amount in smallest units (6 decimals)
-        const usdcAmount = Math.floor(parseFloat(amount) * 1_000_000);
-        console.log("USDC amount in lamports:", usdcAmount);
+        // Calculate SOL amount in lamports (9 decimals)
+        const lamportsToSend = Math.floor(parseFloat(amount) * 1_000_000_000);
+        console.log("SOL amount in lamports:", lamportsToSend);
 
-        // Get associated token accounts
-        console.log("Getting associated token accounts...");
-        const userTokenAccount = await getAssociatedTokenAddress(usdcMint, userPubkey);
-        const treasuryTokenAccount = await getAssociatedTokenAddress(usdcMint, treasuryPubkey);
-        
-        console.log("User token account:", userTokenAccount.toString());
-        console.log("Treasury token account:", treasuryTokenAccount.toString());
-
-        // Create a simple SOL transfer for testing wallet integration (avoiding USDC token account issues)
-        console.log("Creating SOL transfer for testing...");
+        // Create SOL transfer instruction
+        console.log("Creating SOL transfer...");
         const { SystemProgram } = await import('@solana/web3.js');
-        const lamportsToSend = Math.floor(parseFloat(amount) * 1000000); // Convert to lamports for testing
 
-        // Create SOL transfer instruction instead of USDC
+        // Create SOL transfer instruction
         const transferInstruction = SystemProgram.transfer({
           fromPubkey: userPubkey,
           toPubkey: treasuryPubkey,
