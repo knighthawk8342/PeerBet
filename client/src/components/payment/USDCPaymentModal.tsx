@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { createTransferInstruction, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 interface USDCPaymentModalProps {
   isOpen: boolean;
@@ -16,6 +18,7 @@ interface USDCPaymentModalProps {
 }
 
 const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 export function USDCPaymentModal({ 
   isOpen, 
@@ -68,10 +71,45 @@ export function USDCPaymentModal({
         description: "Your wallet will open to approve the USDC payment",
       });
 
-      // Execute direct USDC transfer transaction
+      // Execute real USDC token transfer transaction
       let signature;
       
       try {
+        const connection = new Connection("https://api.mainnet-beta.solana.com");
+        const usdcMint = new PublicKey(USDC_MINT);
+        const treasuryPubkey = new PublicKey(TREASURY_WALLET);
+        const userPubkey = new PublicKey(publicKey);
+
+        // Calculate USDC amount in smallest units (6 decimals)
+        const usdcAmount = Math.floor(parseFloat(amount) * 1_000_000);
+
+        // Get associated token accounts
+        const userTokenAccount = await getAssociatedTokenAddress(usdcMint, userPubkey);
+        const treasuryTokenAccount = await getAssociatedTokenAddress(usdcMint, treasuryPubkey);
+
+        // Create transfer instruction
+        const transferInstruction = createTransferInstruction(
+          userTokenAccount,
+          treasuryTokenAccount,
+          userPubkey,
+          usdcAmount,
+          [],
+          TOKEN_PROGRAM_ID
+        );
+
+        // Create transaction
+        const transaction = new Transaction().add(transferInstruction);
+        
+        // Get latest blockhash
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = userPubkey;
+
+        toast({
+          title: "Confirm USDC Transfer",
+          description: `Sending ${amount} USDC to treasury wallet`,
+        });
+
         // Check for Phantom wallet
         if (window.solana && window.solana.isPhantom) {
           // Ensure Phantom is connected
@@ -79,56 +117,25 @@ export function USDCPaymentModal({
             await window.solana.connect();
           }
 
-          toast({
-            title: "Confirm USDC Transfer",
-            description: `Please approve the ${amount} USDC transfer in your wallet`,
-          });
-
-          // Create a message for the user to confirm the USDC transfer
-          const transferMessage = `CONFIRM: Send ${amount} USDC to treasury wallet ${TREASURY_WALLET} for betting market: ${marketTitle}`;
-          const messageBytes = new TextEncoder().encode(transferMessage);
-
-          // Get signature confirmation for the USDC transfer
-          const signResult = await window.solana.signMessage(messageBytes);
-          signature = Array.from(signResult.signature).map(b => b.toString(16).padStart(2, '0')).join('');
-          
-          // Verify the signature was created
-          if (!signature || signature.length < 32) {
-            throw new Error("USDC transfer confirmation failed");
-          }
-
-          // Generate a proper transaction-like signature
-          signature = `usdc_transfer_${Date.now()}_${signature.substring(0, 20)}`;
+          // Sign and send the USDC transfer transaction
+          signature = await window.solana.signAndSendTransaction(transaction);
           
         } else if (window.solflare && window.solflare.isSolflare) {
           // Solflare wallet approach
           if (!window.solflare.isConnected) {
             await window.solflare.connect();
           }
-          
-          toast({
-            title: "Confirm USDC Transfer",
-            description: `Please approve the ${amount} USDC transfer in your wallet`,
-          });
 
-          // Create a message for the user to confirm the USDC transfer
-          const transferMessage = `CONFIRM: Send ${amount} USDC to treasury wallet ${TREASURY_WALLET} for betting market: ${marketTitle}`;
-          const messageBytes = new TextEncoder().encode(transferMessage);
-
-          // Get signature confirmation for the USDC transfer
-          const signResult = await window.solflare.signMessage(messageBytes);
-          signature = Array.from(signResult.signature).map(b => b.toString(16).padStart(2, '0')).join('');
-          
-          // Verify the signature was created
-          if (!signature || signature.length < 32) {
-            throw new Error("USDC transfer confirmation failed");
-          }
-
-          // Generate a proper transaction-like signature
-          signature = `usdc_transfer_${Date.now()}_${signature.substring(0, 20)}`;
+          // Sign and send the USDC transfer transaction
+          signature = await window.solflare.signAndSendTransaction(transaction);
           
         } else {
           throw new Error("No compatible Solana wallet found. Please install Phantom or Solflare.");
+        }
+
+        // Wait for transaction confirmation
+        if (signature) {
+          await connection.confirmTransaction(signature);
         }
 
         // Validate signature was created
