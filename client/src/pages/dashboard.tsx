@@ -63,6 +63,15 @@ export default function Dashboard() {
   
   const winRate = decidedMarkets.length > 0 ? Math.round((wins.length / decidedMarkets.length) * 100) : 0;
 
+  // Debug logging
+  console.log("Dashboard Debug:");
+  console.log("- userMarkets:", userMarkets);
+  console.log("- completedMarkets:", completedMarkets);
+  console.log("- decidedMarkets:", decidedMarkets);
+  console.log("- wins:", wins);
+  console.log("- losses:", losses);
+  console.log("- publicKey:", publicKey);
+
   const totalProfit = Array.isArray(transactions) ? 
     (transactions as Transaction[])
       .filter((t: Transaction) => t.type === "payout")
