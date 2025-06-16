@@ -1,10 +1,15 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { WalletConnectionModal } from "@/components/wallet/WalletConnectionModal";
+import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 
 export function Navigation() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const { connected, publicKey, disconnect } = useSolanaWallet();
 
   const navItems = [
     { path: "/", label: "Markets", active: location === "/" },
@@ -12,9 +17,13 @@ export function Navigation() {
     { path: "/create", label: "Create Market", active: location === "/create" },
   ];
 
-  if (user?.isAdmin) {
+  if ((user as any)?.isAdmin) {
     navItems.push({ path: "/admin", label: "Admin", active: location === "/admin" });
   }
+
+  const handleWalletConnect = (publicKey: string) => {
+    console.log('Wallet connected in navigation:', publicKey);
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
