@@ -12,11 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { insertMarketSchema } from "@shared/schema";
 import { z } from "zod";
 
-const formSchema = insertMarketSchema.extend({
-  stakeAmount: z.number().min(1, "Stake amount must be at least $1"),
+const formSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
+  stakeAmount: z.string().min(1, "Stake amount is required"),
+  expiryDate: z.string().min(1, "Expiry date is required"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -26,20 +29,25 @@ export default function CreateMarket() {
   const { toast } = useToast();
   const [stakeAmount, setStakeAmount] = useState(0);
 
-  const form = useForm<FormData>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
       category: "",
-      stakeAmount: 0,
+      stakeAmount: "",
       expiryDate: "",
     },
   });
 
   const createMarketMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      await apiRequest("POST", "/api/markets", data);
+    mutationFn: async (data: any) => {
+      const transformedData = {
+        ...data,
+        stakeAmount: data.stakeAmount.toString(),
+        expiryDate: data.expiryDate,
+      };
+      await apiRequest("POST", "/api/markets", transformedData);
     },
     onSuccess: () => {
       toast({
@@ -58,7 +66,7 @@ export default function CreateMarket() {
     },
   });
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = (data: any) => {
     createMarketMutation.mutate(data);
   };
 
