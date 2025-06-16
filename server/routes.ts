@@ -170,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = req.user;
       const marketId = parseInt(req.params.id);
-      const { settlement } = settleMarketSchema.parse(req.body);
+      const { settlement } = settleMarketSchema.omit({ marketId: true }).parse(req.body);
 
       // Admin wallet addresses - only these can settle markets
       const adminWallets = [
