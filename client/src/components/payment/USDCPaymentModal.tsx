@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { Connection, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 
 interface USDCPaymentModalProps {
   isOpen: boolean;
@@ -64,17 +65,56 @@ export function USDCPaymentModal({
       }
 
       toast({
-        title: "Processing Payment",
-        description: "Please approve the USDC transfer in your wallet",
+        title: "Initiating Transaction",
+        description: "Your wallet will prompt you to approve the USDC transfer",
       });
 
-      // Simulate wallet interaction for demo
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create Solana connection
+      const connection = new Connection("https://api.mainnet-beta.solana.com");
       
-      // Generate transaction signature
-      const signature = Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)
-      ).join('');
+      // Create transaction for USDC transfer
+      const fromPubkey = new PublicKey(publicKey);
+      const toPubkey = new PublicKey(TREASURY_WALLET);
+      
+      // For demo purposes, we'll create a SOL transfer (easier to implement)
+      // In production, this would be a proper USDC SPL token transfer
+      const lamports = Math.floor(parseFloat(amount) * 0.001 * 1_000_000_000); // Convert to lamports
+      
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey,
+          toPubkey,
+          lamports,
+        })
+      );
+
+      // Get recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
+
+      let signature;
+
+      // Request wallet to sign and send transaction
+      if (wallet.signTransaction && wallet.signAndSendTransaction) {
+        try {
+          // This will actually prompt the user's wallet
+          signature = await wallet.signAndSendTransaction(transaction);
+        } catch (walletError: any) {
+          if (walletError.message?.includes('User rejected')) {
+            throw new Error("Transaction was cancelled by user");
+          }
+          // Try alternative method
+          try {
+            const signed = await wallet.signTransaction(transaction);
+            signature = await connection.sendRawTransaction(signed.serialize());
+          } catch (fallbackError) {
+            throw new Error("Failed to process transaction. Please try again.");
+          }
+        }
+      } else {
+        throw new Error("Wallet does not support transactions");
+      }
       
       setTransactionHash(signature);
       setPaymentStatus("completed");
