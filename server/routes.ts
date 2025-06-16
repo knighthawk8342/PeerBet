@@ -11,14 +11,20 @@ const PLATFORM_FEE_RATE = 0.02; // 2%
 const requireWalletAuth: RequestHandler = async (req: any, res, next) => {
   const walletPublicKey = req.headers['x-wallet-public-key'] as string;
   
+  console.log("Auth middleware - Wallet public key:", walletPublicKey);
+  
   if (!walletPublicKey) {
+    console.log("Auth middleware - No wallet public key provided");
     return res.status(401).json({ message: "Wallet public key required" });
   }
   
   try {
     // Get or create user based on wallet public key
     let user = await storage.getUser(walletPublicKey);
+    console.log("Auth middleware - Found user:", user ? "Yes" : "No");
+    
     if (!user) {
+      console.log("Auth middleware - Creating new user");
       user = await storage.upsertUser({
         id: walletPublicKey,
         email: null,
@@ -29,6 +35,7 @@ const requireWalletAuth: RequestHandler = async (req: any, res, next) => {
     }
     
     req.user = user;
+    console.log("Auth middleware - User set:", user.id);
     next();
   } catch (error) {
     console.error("Auth error:", error);
@@ -289,6 +296,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching transactions:", error);
       res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+  });
+
+  // User dashboard routes
+  app.get('/api/user/markets', requireWalletAuth, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const markets = await storage.getUserMarkets(user.id);
+      res.json(markets);
+    } catch (error) {
+      console.error("Error fetching user markets:", error);
+      res.status(500).json({ message: "Failed to fetch user markets" });
+    }
+  });
+
+  app.get('/api/user/transactions', requireWalletAuth, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const transactions = await storage.getUserTransactions(user.id);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching user transactions:", error);
+      res.status(500).json({ message: "Failed to fetch user transactions" });
     }
   });
 
