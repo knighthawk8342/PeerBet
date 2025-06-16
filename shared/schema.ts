@@ -47,6 +47,7 @@ export const markets = pgTable("markets", {
   status: varchar("status", { length: 20 }).notNull().default("open"), // open, active, settled, cancelled
   expiryDate: timestamp("expiry_date").notNull(),
   settlement: varchar("settlement", { length: 20 }), // creator_wins, counterparty_wins, refund
+  paymentSignature: text("payment_signature"), // USDC transaction signature
   createdAt: timestamp("created_at").defaultNow(),
   settledAt: timestamp("settled_at"),
 });
@@ -74,9 +75,11 @@ export const insertMarketSchema = createInsertSchema(markets).pick({
   category: true,
   stakeAmount: true,
   expiryDate: true,
+  paymentSignature: true,
 }).extend({
   stakeAmount: z.string().transform((val) => parseFloat(val)),
   expiryDate: z.string().transform((val) => new Date(val)),
+  paymentSignature: z.string().min(1, "USDC payment signature is required"),
 });
 
 export const joinMarketSchema = z.object({

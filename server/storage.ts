@@ -58,6 +58,16 @@ export class DatabaseStorage implements IStorage {
 
   // Market operations
   async createMarket(market: InsertMarket): Promise<Market> {
+    // Validate payment signature is provided
+    if (!market.paymentSignature) {
+      throw new Error("USDC payment signature is required to create market");
+    }
+
+    // Validate signature format (in production, would validate against Solana blockchain)
+    if (market.paymentSignature.length < 10) {
+      throw new Error("Invalid USDC payment signature format");
+    }
+
     const [createdMarket] = await db
       .insert(markets)
       .values(market)
