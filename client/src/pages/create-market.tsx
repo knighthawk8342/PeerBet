@@ -18,7 +18,7 @@ import { z } from "zod";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
+  description: z.string().min(1, "Market rules are required"),
   category: z.string().min(1, "Category is required"),
   stakeAmount: z.string().min(1, "Stake amount is required").refine((val) => {
     const num = parseFloat(val);
@@ -174,13 +174,16 @@ export default function CreateMarket() {
                       name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Description (Optional)</FormLabel>
+                          <FormLabel>Market Rules</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Additional details about the market conditions..."
+                              placeholder="Define clear rules for how this market will be settled. These rules determine the winning conditions and are used by admins to decide the outcome. Be specific about what constitutes a win/loss scenario."
                               {...field}
                             />
                           </FormControl>
+                          <FormDescription>
+                            These rules are how we determine if the market is settled correctly. Be clear and specific.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
