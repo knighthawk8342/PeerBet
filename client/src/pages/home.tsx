@@ -81,26 +81,47 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Stats Overview */}
+        {/* Market Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Open Markets"
-            value={openMarkets.length}
-            icon="fas fa-chart-line"
-            color="primary"
-          />
-          <StatsCard
-            title="Active Bets"
-            value={activeMarkets.length}
-            icon="fas fa-clock"
-            color="warning"
-          />
-          <StatsCard
-            title="Completed"
-            value={settledMarkets.length}
-            icon="fas fa-check-circle"
-            color="success"
-          />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+                <div className="w-6 h-6 text-blue-600 dark:text-blue-400">📊</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{openMarkets.length}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Available</div>
+              </div>
+            </div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Open Markets</div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
+                <div className="w-6 h-6 text-orange-600 dark:text-orange-400">⚡</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{activeMarkets.length}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Live</div>
+              </div>
+            </div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Active Bets</div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                <div className="w-6 h-6 text-green-600 dark:text-green-400">✅</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{settledMarkets.length}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Settled</div>
+              </div>
+            </div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Completed</div>
+          </div>
+
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
