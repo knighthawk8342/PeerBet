@@ -41,7 +41,7 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
           onClick={() => onJoin(market)}
         >
           <span className="mr-2">⚡</span>
-          Join Market
+          Join for {counterpartyStake.toFixed(3)} SOL
         </Button>
       );
     }

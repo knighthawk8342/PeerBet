@@ -67,9 +67,12 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
 
   if (!market) return null;
 
-  const stakeAmount = parseFloat(market.stakeAmount);
-  const platformFee = stakeAmount * 2 * 0.02;
-  const potentialWin = stakeAmount * 2 - platformFee;
+  const creatorStake = parseFloat(market.stakeAmount);
+  const counterpartyStake = parseFloat(market.counterpartyStakeAmount);
+  const odds = parseFloat(market.odds);
+  const totalPot = creatorStake + counterpartyStake;
+  const platformFee = totalPot * 0.02;
+  const potentialWin = totalPot - platformFee;
 
   // Show payment modal if payment flow is initiated
   if (showPayment) {
@@ -78,7 +81,7 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
         isOpen={showPayment}
         onClose={() => setShowPayment(false)}
         onPaymentComplete={handlePaymentComplete}
-        amount={market.stakeAmount}
+        amount={market.counterpartyStakeAmount}
         marketTitle={market.title}
         action="join"
       />
@@ -102,8 +105,16 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
           
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">Required stake:</span>
-              <span className="font-semibold">{stakeAmount.toFixed(3)} SOL</span>
+              <span className="text-gray-600">Your required stake:</span>
+              <span className="font-semibold">{counterpartyStake.toFixed(3)} SOL</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Creator's stake:</span>
+              <span className="font-medium">{creatorStake.toFixed(3)} SOL</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Odds:</span>
+              <span className="font-medium">{odds.toFixed(2)}:1</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Platform fee (2%):</span>

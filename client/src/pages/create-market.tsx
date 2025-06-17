@@ -38,6 +38,7 @@ export default function CreateMarket() {
   const { toast } = useToast();
   const { connected, publicKey } = useSolanaWallet();
   const [stakeAmount, setStakeAmount] = useState(0);
+  const [odds, setOdds] = useState(1.0);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [pendingMarketData, setPendingMarketData] = useState<FormData | null>(null);
 
@@ -251,6 +252,10 @@ export default function CreateMarket() {
                               max="10"
                               placeholder="1.00"
                               {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                setOdds(parseFloat(e.target.value) || 1.0);
+                              }}
                             />
                           </FormControl>
                           <FormDescription>
@@ -311,30 +316,36 @@ export default function CreateMarket() {
               <div className="p-6 space-y-4">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Your stake:</span>
-                  <span className="font-medium">{stakeAmount.toFixed(2)} SOL</span>
+                  <span className="font-medium">{stakeAmount.toFixed(3)} SOL</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Counterparty stake:</span>
+                  <span className="font-medium">{(stakeAmount / odds).toFixed(3)} SOL</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Total pool:</span>
+                  <span className="font-medium">{(stakeAmount + (stakeAmount / odds)).toFixed(3)} SOL</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Platform fee (2%):</span>
-                  <span className="font-medium">{platformFee.toFixed(2)} SOL</span>
+                  <span className="font-medium">{((stakeAmount + (stakeAmount / odds)) * 0.02).toFixed(3)} SOL</span>
                 </div>
                 <div className="border-t pt-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-900 font-medium">Winner takes:</span>
-                    <span className="font-semibold text-green-600">{winnerAmount.toFixed(2)} SOL</span>
+                    <span className="font-semibold text-green-600">{((stakeAmount + (stakeAmount / odds)) * 0.98).toFixed(3)} SOL</span>
                   </div>
                 </div>
                 
                 <div className="bg-blue-50 rounded-lg p-3 mt-4">
                   <p className="text-sm text-blue-800">
-                    <i className="fas fa-info-circle mr-1"></i>
-                    Your opponent will need to stake the same amount to join this market.
+                    💡 Your opponent will need to stake {(stakeAmount / odds).toFixed(3)} SOL based on {odds.toFixed(2)}:1 odds.
                   </p>
                 </div>
 
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-3">
                   <p className="text-sm text-green-800">
-                    <i className="fas fa-dollar-sign mr-1"></i>
-                    Payment required: {stakeAmount.toFixed(2)} SOL on Solana
+                    💰 Payment required: {stakeAmount.toFixed(3)} SOL on Solana
                   </p>
                 </div>
               </div>
