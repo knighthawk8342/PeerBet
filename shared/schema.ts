@@ -42,12 +42,14 @@ export const markets = pgTable("markets", {
   description: text("description"),
   category: varchar("category", { length: 50 }).notNull(),
   stakeAmount: decimal("stake_amount", { precision: 10, scale: 2 }).notNull(),
+  counterpartyStakeAmount: decimal("counterparty_stake_amount", { precision: 10, scale: 2 }).notNull(),
+  odds: decimal("odds", { precision: 5, scale: 2 }).notNull().default("1.00"), // e.g., 2.00 means 2:1 odds
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   counterpartyId: varchar("counterparty_id").references(() => users.id),
   status: varchar("status", { length: 20 }).notNull().default("open"), // open, active, settled, cancelled
   expiryDate: timestamp("expiry_date").notNull(),
   settlement: varchar("settlement", { length: 20 }), // creator_wins, counterparty_wins, refund
-  paymentSignature: text("payment_signature"), // USDC transaction signature
+  paymentSignature: text("payment_signature"), // SOL transaction signature
   createdAt: timestamp("created_at").defaultNow(),
   settledAt: timestamp("settled_at"),
 });
@@ -75,10 +77,14 @@ export const insertMarketSchema = createInsertSchema(markets).pick({
   description: true,
   category: true,
   stakeAmount: true,
+  counterpartyStakeAmount: true,
+  odds: true,
   expiryDate: true,
   paymentSignature: true,
 }).extend({
   stakeAmount: z.string().transform((val) => parseFloat(val)).refine((val) => val >= 0.01, "Minimum stake amount is 0.01 SOL"),
+  counterpartyStakeAmount: z.string().transform((val) => parseFloat(val)).refine((val) => val >= 0.01, "Minimum counterparty stake is 0.01 SOL"),
+  odds: z.string().transform((val) => parseFloat(val)).refine((val) => val >= 0.1 && val <= 10, "Odds must be between 0.1 and 10"),
   expiryDate: z.string().transform((val) => new Date(val)),
   paymentSignature: z.string().min(1, "SOL payment signature is required"),
 });

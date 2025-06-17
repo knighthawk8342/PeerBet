@@ -24,6 +24,10 @@ const formSchema = z.object({
     const num = parseFloat(val);
     return num >= 0.01;
   }, "Minimum stake amount is 0.01 SOL"),
+  odds: z.string().min(1, "Odds are required").refine((val) => {
+    const num = parseFloat(val);
+    return num >= 0.1 && num <= 10;
+  }, "Odds must be between 0.1 and 10"),
   expiryDate: z.string().min(1, "Expiry date is required"),
 });
 
@@ -44,17 +48,24 @@ export default function CreateMarket() {
       description: "",
       category: "",
       stakeAmount: "",
+      odds: "1.00",
       expiryDate: "",
     },
   });
 
   const createMarketMutation = useMutation({
     mutationFn: async (data: any) => {
+      const creatorStake = parseFloat(data.stakeAmount);
+      const odds = parseFloat(data.odds);
+      const counterpartyStake = creatorStake / odds;
+      
       const transformedData = {
         ...data,
-        stakeAmount: data.stakeAmount.toString(),
+        stakeAmount: creatorStake.toString(),
+        counterpartyStakeAmount: counterpartyStake.toString(),
+        odds: odds.toString(),
         expiryDate: data.expiryDate,
-        paymentSignature: data.paymentSignature, // Include USDC transaction signature
+        paymentSignature: data.paymentSignature,
       };
       await apiRequest("POST", "/api/markets", transformedData);
     },
@@ -225,6 +236,30 @@ export default function CreateMarket() {
                         )}
                       />
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name="odds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Odds (Your Stake : Counterparty Stake)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0.1"
+                              max="10"
+                              placeholder="1.00"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            E.g., 2.00 means you stake 2x what the counterparty stakes
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control}
