@@ -21,7 +21,7 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Home} />
-          <Route path="/create" component={CreateMarket} />
+          <Route path="/create-market" component={CreateMarket} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/admin" component={Admin} />
         </>
