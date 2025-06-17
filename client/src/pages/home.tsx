@@ -101,18 +101,26 @@ export default function Home() {
             icon="fas fa-check-circle"
             color="success"
           />
-          <StatsCard
-            title="Total Volume"
-            value={`${allMarkets.reduce((sum: number, m: Market) => sum + parseFloat(m.stakeAmount) * (m.status === "active" || m.status === "settled" ? 2 : 1), 0).toFixed(3)} SOL`}
-            icon="fas fa-coins"
-            color="gray"
-          />
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                <div className="w-6 h-6 text-purple-600 dark:text-purple-400">💰</div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {allMarkets.reduce((sum: number, m: Market) => sum + parseFloat(m.stakeAmount) * (m.status === "active" || m.status === "settled" ? 2 : 1), 0).toFixed(3)}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">SOL</div>
+              </div>
+            </div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Volume</div>
+          </div>
         </div>
 
         {/* Filter Tabs */}
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+        <div className="mb-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-2 shadow-sm border border-gray-200 dark:border-gray-700">
+            <nav className="flex space-x-2">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}

@@ -118,22 +118,25 @@ export default function CreateMarket() {
   const winnerAmount = totalPool - (totalPool * 0.02);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Navigation />
       
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Market</h1>
-          <p className="text-gray-600">Set up a 1v1 prediction market for others to join</p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+            Create New Market
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400">Set up a 1v1 prediction market for others to join</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Market Details</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Market Details</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure your prediction market</p>
+              </div>
+              <div className="p-6">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <FormField
@@ -260,16 +263,17 @@ export default function CreateMarket() {
                     </div>
                   </form>
                 </Form>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Market Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Market Summary</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Review your market details</p>
+              </div>
+              <div className="p-6 space-y-4">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-600">Your stake:</span>
                   <span className="font-medium">{stakeAmount.toFixed(2)} SOL</span>
