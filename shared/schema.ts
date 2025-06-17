@@ -42,7 +42,7 @@ export const markets = pgTable("markets", {
   description: text("description"),
   category: varchar("category", { length: 50 }).notNull(),
   stakeAmount: decimal("stake_amount", { precision: 10, scale: 2 }).notNull(),
-  counterpartyStakeAmount: decimal("counterparty_stake_amount", { precision: 10, scale: 2 }).notNull(),
+  counterpartyStakeAmount: decimal("counterparty_stake_amount", { precision: 10, scale: 2 }).notNull().default("0.01"),
   odds: decimal("odds", { precision: 5, scale: 2 }).notNull().default("1.00"), // e.g., 2.00 means 2:1 odds
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   counterpartyId: varchar("counterparty_id").references(() => users.id),

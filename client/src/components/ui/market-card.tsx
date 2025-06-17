@@ -77,10 +77,11 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
     );
   };
 
-  const stakeAmount = parseFloat(market.stakeAmount);
-  const potentialPayout = market.status === "settled" 
-    ? stakeAmount * 2 - (stakeAmount * 2 * 0.02)
-    : stakeAmount * 2 - (stakeAmount * 2 * 0.02);
+  const creatorStake = parseFloat(market.stakeAmount);
+  const counterpartyStake = parseFloat(market.counterpartyStakeAmount);
+  const odds = parseFloat(market.odds);
+  const totalPot = creatorStake + counterpartyStake;
+  const potentialPayout = totalPot - (totalPot * 0.02);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200 group">
@@ -103,16 +104,19 @@ export function MarketCard({ market, onJoin }: MarketCardProps) {
         <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-              <span className="mr-2">💰</span>
-              Stake Amount
+              <span className="mr-2">⚖️</span>
+              Stakes (Odds: {odds.toFixed(2)}:1)
             </div>
-            <div className="text-lg font-bold text-gray-900 dark:text-white">{stakeAmount.toFixed(3)} SOL</div>
+            <div className="text-right">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Creator: {creatorStake.toFixed(3)} SOL</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Joiner: {counterpartyStake.toFixed(3)} SOL</div>
+            </div>
           </div>
           
           <div className="flex items-center justify-between">
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
               <span className="mr-2">🎯</span>
-              {market.status === "settled" ? "Final Pool" : "Potential Payout"}
+              {market.status === "settled" ? "Final Pool" : "Winner Takes"}
             </div>
             <div className="text-lg font-semibold text-green-600 dark:text-green-400">
               {potentialPayout.toFixed(3)} SOL
