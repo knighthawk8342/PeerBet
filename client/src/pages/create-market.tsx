@@ -302,8 +302,8 @@ export default function CreateMarket() {
                     Payment required: {stakeAmount.toFixed(2)} SOL on Solana
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
 
