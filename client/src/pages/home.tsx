@@ -53,7 +53,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Navigation />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -61,15 +61,20 @@ export default function Home() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Active Markets</h1>
-              <p className="text-gray-600">Join a 1v1 betting market or create your own</p>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                Prediction Markets
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400">
+                Join 1v1 betting markets or create your own predictions on Solana
+              </p>
             </div>
-            <div className="mt-4 sm:mt-0">
+            <div className="mt-6 sm:mt-0">
               <Button 
-                onClick={() => setLocation("/create")}
-                className="bg-primary hover:bg-primary/90"
+                onClick={() => setLocation("/create-market")}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
+                size="lg"
               >
-                <i className="fas fa-plus w-4 h-4 mr-2"></i>
+                <span className="mr-2">✨</span>
                 Create Market
               </Button>
             </div>

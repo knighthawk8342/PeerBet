@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Navigation } from "@/components/navigation";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { WalletStatus } from "@/components/ui/wallet-status";
 import type { Market, Transaction } from "@shared/schema";
 
 function StatsCard({ title, value, icon, color }: { title: string; value: string | number; icon: string; color: string }) {
@@ -30,12 +29,12 @@ function StatsCard({ title, value, icon, color }: { title: string; value: string
 export default function Dashboard() {
   const { publicKey } = useSolanaWallet();
   
-  const { data: userMarkets = [], isLoading: marketsLoading } = useQuery({
+  const { data: userMarkets = [], isLoading: marketsLoading } = useQuery<Market[]>({
     queryKey: ["/api/user/markets"],
     enabled: !!publicKey,
   });
 
-  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery<Transaction[]>({
     queryKey: ["/api/user/transactions"],
     enabled: !!publicKey,
   });
@@ -48,7 +47,9 @@ export default function Dashboard() {
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Dashboard</h1>
             <p className="text-gray-600 dark:text-gray-400 mb-8">Connect your wallet to view your dashboard</p>
-            <WalletStatus showFullCard={true} />
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border">
+              <p className="text-center text-gray-600 dark:text-gray-400">Please connect your Solana wallet to continue</p>
+            </div>
           </div>
         </div>
       </div>
@@ -250,9 +251,24 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Sidebar with Wallet Status */}
+          {/* Sidebar */}
           <div className="space-y-6">
-            <WalletStatus showFullCard={true} />
+            {/* Wallet Info Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Wallet Info</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Address</span>
+                  <span className="text-sm font-mono text-gray-900 dark:text-white">
+                    {publicKey?.slice(0, 8)}...{publicKey?.slice(-4)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Network</span>
+                  <span className="text-sm text-green-600 dark:text-green-400">Mainnet</span>
+                </div>
+              </div>
+            </div>
             
             {/* Recent Transactions */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
@@ -296,7 +312,7 @@ export default function Dashboard() {
                         </div>
                         <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{transaction.description}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                          {transaction.createdAt ? new Date(transaction.createdAt as string).toLocaleString() : 'N/A'}
+                          {transaction.createdAt ? new Date(String(transaction.createdAt)).toLocaleString() : 'N/A'}
                         </p>
                       </div>
                     ))}
