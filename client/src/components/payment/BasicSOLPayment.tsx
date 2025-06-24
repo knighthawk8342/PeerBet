@@ -60,51 +60,81 @@ export function BasicSOLPayment({
 
       console.log(`Processing ${amount} SOL payment...`);
       
-      // Since external RPC access is restricted in this environment,
-      // we'll use a minimal transaction approach that lets Phantom handle everything
-      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
-      
-      const fromPubkey = new PublicKey(publicKey);
-      const toPubkey = new PublicKey(TREASURY_WALLET);
-      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+      // Use direct Phantom transfer functionality
+      const transferParams = {
+        to: TREASURY_WALLET,
+        lamports: Math.floor(parseFloat(amount) * 1_000_000_000)
+      };
 
-      // Create minimal transfer instruction
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey,
-        toPubkey,
-        lamports,
-      });
-
-      // Create basic transaction without explicit blockhash
-      const transaction = new Transaction().add(transferInstruction);
-      transaction.feePayer = fromPubkey;
-
-      console.log("Requesting Phantom to sign and send transaction...");
+      console.log("Requesting Phantom to process transfer...");
       
-      // Use Phantom's signAndSendTransaction which handles RPC internally
-      const result = await window.solana.signAndSendTransaction(transaction);
-      
-      let signature;
-      if (result && result.signature) {
-        signature = result.signature;
-      } else if (typeof result === 'string') {
-        signature = result;
-      } else {
-        throw new Error("Transaction failed - no signature returned");
+      try {
+        // Use Phantom's direct transfer capability
+        const signature = await window.solana.request({
+          method: 'sol_requestTransaction',
+          params: transferParams
+        });
+        
+        if (signature) {
+          console.log("Payment successful:", signature);
+          
+          toast({
+            title: "Payment Successful",
+            description: `Successfully sent ${amount} SOL`,
+          });
+
+          if (onPaymentComplete) {
+            onPaymentComplete(signature);
+          }
+          
+          onClose();
+        } else {
+          throw new Error("No signature received from Phantom");
+        }
+      } catch (directError) {
+        console.log("Direct transfer failed, trying manual transaction creation...");
+        
+        // Fallback to manual transaction creation with better error handling
+        const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+        
+        const fromPubkey = new PublicKey(publicKey);
+        const toPubkey = new PublicKey(TREASURY_WALLET);
+        const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+
+        const transferInstruction = SystemProgram.transfer({
+          fromPubkey,
+          toPubkey,
+          lamports,
+        });
+
+        const transaction = new Transaction().add(transferInstruction);
+        transaction.feePayer = fromPubkey;
+
+        // Let Phantom handle the complete transaction processing
+        const result = await window.solana.signAndSendTransaction(transaction);
+        
+        let signature;
+        if (result && result.signature) {
+          signature = result.signature;
+        } else if (typeof result === 'string') {
+          signature = result;
+        } else {
+          throw new Error("Transaction processing failed");
+        }
+        
+        console.log("Payment successful:", signature);
+        
+        toast({
+          title: "Payment Successful",
+          description: `Successfully sent ${amount} SOL`,
+        });
+
+        if (onPaymentComplete) {
+          onPaymentComplete(signature);
+        }
+        
+        onClose();
       }
-      
-      console.log("Payment successful:", signature);
-      
-      toast({
-        title: "Payment Successful",
-        description: `Successfully sent ${amount} SOL`,
-      });
-
-      if (onPaymentComplete) {
-        onPaymentComplete(signature);
-      }
-      
-      onClose();
 
     } catch (error: any) {
       console.error("Payment error:", error);
