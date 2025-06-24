@@ -114,6 +114,9 @@ Changelog:
 - June 16, 2025. Completed settlement system implementation with admin-only access controls
 - June 16, 2025. Added admin panel with market overview, payout calculations, and settlement controls
 - June 16, 2025. Successfully tested market settlement with real transaction records and status updates
+- June 24, 2025. Implemented odds functionality allowing asymmetric stakes between creator and joiner
+- June 24, 2025. Added close market feature for creators to cancel open markets with automatic refunds
+- June 24, 2025. Enhanced UI with cancelled market status badges and dedicated "Closed" tab filter
 ```
 
 ## User Preferences

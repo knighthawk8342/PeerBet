@@ -45,6 +45,7 @@ export default function Home() {
   const openMarkets = allMarkets.filter((m: Market) => m.status === "open");
   const activeMarkets = allMarkets.filter((m: Market) => m.status === "active");
   const settledMarkets = allMarkets.filter((m: Market) => m.status === "settled");
+  const cancelledMarkets = allMarkets.filter((m: Market) => m.status === "cancelled");
 
   const handleJoinMarket = (market: Market) => {
     setSelectedMarket(market);
@@ -91,6 +92,8 @@ export default function Home() {
     { id: "open", label: "Open Markets", count: openMarkets.length },
     { id: "active", label: "Active Bets", count: activeMarkets.length },
     { id: "settled", label: "Completed", count: settledMarkets.length },
+    { id: "cancelled", label: "Closed", count: cancelledMarkets.length },
+    { id: "all", label: "All Markets", count: allMarkets.length },
   ];
 
   return (
@@ -182,19 +185,23 @@ export default function Home() {
         {/* Filter Tabs */}
         <div className="mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-2 shadow-sm border border-gray-200 dark:border-gray-700">
-            <nav className="flex space-x-2">
+            <nav className="flex space-x-2 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setFilterStatus(tab.id)}
                   className={`${
                     filterStatus === tab.id
-                      ? "border-primary text-primary"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2`}
+                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  } whitespace-nowrap py-2 px-4 rounded-xl font-medium text-sm flex items-center space-x-2 transition-all duration-200`}
                 >
                   <span>{tab.label}</span>
-                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${
+                    filterStatus === tab.id 
+                      ? "bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200"
+                      : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                  }`}>
                     {tab.count}
                   </span>
                 </button>
