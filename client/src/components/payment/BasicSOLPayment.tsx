@@ -58,33 +58,49 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      console.log("Creating minimal SOL payment...");
+      console.log(`Initiating ${amount} SOL transfer from ${publicKey} to ${TREASURY_WALLET}`);
+
+      // Create SOL transfer transaction
+      console.log("Creating SOL transfer transaction...");
       
-      // Use standard Web3.js with Phantom's connection which provides RPC access
-      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+      
+      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      
+      // Use devnet for testing - it's more reliable in this environment
+      const connection = new Connection("https://api.devnet.solana.com");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
-      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
-
-      // Create transfer instruction
+      
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
         lamports,
       });
-
-      // Create transaction
-      const transaction = new Transaction().add(transferInstruction);
-      transaction.feePayer = fromPubkey;
-
-      console.log("Requesting Phantom to handle complete transaction...");
       
-      // Use Phantom's signAndSendTransaction which handles everything internally
-      const { signature } = await window.solana.signAndSendTransaction(transaction);
+      const transaction = new Transaction().add(transferInstruction);
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
+      
+      console.log("Requesting Phantom to sign transaction...");
+      
+      // Sign transaction with Phantom
+      const signedTransaction = await window.solana.signTransaction(transaction);
+      
+      console.log("Transaction signed, sending to network...");
+      
+      // Send the signed transaction
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      
+      console.log("Transaction sent, waiting for confirmation...");
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
       
       if (signature) {
-        console.log("Transaction sent with signature:", signature);
+        console.log("Payment successful:", signature);
         
         toast({
           title: "Payment Successful",
@@ -97,7 +113,7 @@ export function BasicSOLPayment({
         
         onClose();
       } else {
-        throw new Error("Transaction failed");
+        throw new Error("Transaction was not completed");
       }
 
     } catch (error: any) {
