@@ -4,8 +4,58 @@ import { storage } from "./storage";
 import { insertMarketSchema, joinMarketSchema, settleMarketRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import type { RequestHandler } from "express";
+import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
 
 const PLATFORM_FEE_RATE = 0.02; // 2%
+
+// Solana configuration
+const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
+const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
+const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
+
+// Helper function to send SOL refund
+async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promise<string> {
+  try {
+    // For security, the treasury private key should be stored as an environment variable
+    if (!process.env.TREASURY_PRIVATE_KEY) {
+      throw new Error("Treasury private key not configured");
+    }
+    
+    const treasuryKeypair = Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(process.env.TREASURY_PRIVATE_KEY))
+    );
+    
+    const recipientPubkey = new PublicKey(recipientAddress);
+    const lamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);
+    
+    // Create transaction
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: treasuryKeypair.publicKey,
+        toPubkey: recipientPubkey,
+        lamports,
+      })
+    );
+    
+    // Get recent blockhash
+    const { blockhash } = await connection.getLatestBlockhash();
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = treasuryKeypair.publicKey;
+    
+    // Sign and send transaction
+    transaction.sign(treasuryKeypair);
+    const signature = await connection.sendRawTransaction(transaction.serialize());
+    
+    // Confirm transaction
+    await connection.confirmTransaction(signature, 'confirmed');
+    
+    console.log(`SOL refund sent: ${amountSOL} SOL to ${recipientAddress}, signature: ${signature}`);
+    return signature;
+  } catch (error) {
+    console.error("Error sending SOL refund:", error);
+    throw new Error(`Failed to send SOL refund: ${error.message}`);
+  }
+}
 
 // Simple wallet-based authentication middleware
 const requireWalletAuth: RequestHandler = async (req: any, res, next) => {
@@ -286,17 +336,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Close the market
       const closedMarket = await storage.closeMarket(marketId, user.id);
       
-      // Refund the creator's stake since no one joined
+      // Send automatic SOL refund from treasury wallet
       const stakeAmount = parseFloat(closedMarket.stakeAmount);
+      
+      let refundSignature = null;
+      try {
+        refundSignature = await sendSOLRefund(user.id, stakeAmount);
+        console.log(`Automatic refund sent to ${user.id}: ${stakeAmount} SOL, signature: ${refundSignature}`);
+      } catch (refundError) {
+        console.error("Failed to send automatic refund:", refundError);
+        // Continue without failing the market closure, but log the error
+      }
+      
+      // Create transaction record
       await storage.createTransaction({
         userId: user.id,
         marketId: closedMarket.id,
         type: "refund",
         amount: stakeAmount.toString(),
-        description: `Refund for closed market: ${closedMarket.title}`,
+        description: refundSignature 
+          ? `Automatic refund for closed market: ${closedMarket.title} (${refundSignature})`
+          : `Refund for closed market: ${closedMarket.title} (manual processing required)`,
       });
       
-      res.json(closedMarket);
+      res.json({ 
+        market: closedMarket,
+        refund: {
+          amount: stakeAmount,
+          signature: refundSignature,
+          status: refundSignature ? "completed" : "pending"
+        }
+      });
     } catch (error) {
       console.error("Error closing market:", error);
       res.status(500).json({ message: error.message || "Failed to close market" });
