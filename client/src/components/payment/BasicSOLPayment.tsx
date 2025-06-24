@@ -124,10 +124,22 @@ export function BasicSOLPayment({
           title: "Payment Cancelled",
           description: "You cancelled the transaction",
         });
+      } else if (error.message?.includes("insufficient lamports") || error.transactionMessage?.includes("insufficient lamports")) {
+        toast({
+          title: "Insufficient Balance",
+          description: "Your wallet doesn't have enough SOL for this transaction. Please add more SOL to your wallet.",
+          variant: "destructive",
+        });
       } else if (error.message?.includes("blockhash") || error.message?.includes("fetch")) {
         toast({
           title: "Network Error",
           description: "Solana network connection issue. Please try again.",
+          variant: "destructive",
+        });
+      } else if (error.transactionMessage?.includes("Transaction simulation failed")) {
+        toast({
+          title: "Transaction Failed",
+          description: "Transaction simulation failed. Please check your wallet balance and try again.",
           variant: "destructive",
         });
       } else {
