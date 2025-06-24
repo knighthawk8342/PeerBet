@@ -58,40 +58,16 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use the EXACT working approach from SimpleSOLPayment but for mainnet
-      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+      // Let Phantom handle EVERYTHING - no RPC calls from our side
+      console.log("Creating transaction for Phantom to handle...");
       
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
-      
-      // Try multiple RPC endpoints for reliability
-      const rpcEndpoints = [
-        "https://rpc.ankr.com/solana",
-        "https://solana-mainnet.rpc.extrnode.com",
-        "https://api.mainnet-beta.solana.com",
-        "https://solana.public-rpc.com"
-      ];
-      
-      let connection;
-      for (const endpoint of rpcEndpoints) {
-        try {
-          connection = new Connection(endpoint);
-          // Test the connection
-          await connection.getLatestBlockhash();
-          console.log("Using RPC endpoint:", endpoint);
-          break;
-        } catch (error) {
-          console.log("RPC endpoint failed:", endpoint);
-          continue;
-        }
-      }
-      
-      if (!connection) {
-        throw new Error("All RPC endpoints failed");
-      }
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
-      
+      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+
+      // Create minimal transaction - let Phantom fill in all the details
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
@@ -99,26 +75,17 @@ export function BasicSOLPayment({
       });
       
       const transaction = new Transaction().add(transferInstruction);
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
       
-      console.log("Requesting Phantom to sign transaction...");
+      console.log("Requesting Phantom to sign and send transaction...");
       
-      // Sign transaction with Phantom (this should open the wallet)
-      const signedTransaction = await window.solana.signTransaction(transaction);
+      // Use Phantom's signAndSendTransaction - it handles EVERYTHING internally
+      const result = await window.solana.signAndSendTransaction(transaction);
+      const signature = typeof result === 'string' ? result : result.signature;
       
-      console.log("Transaction signed, sending to network...");
+      console.log("Transaction completed with signature:", signature);
       
-      // Send the signed transaction
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-      
-      console.log("Transaction sent, waiting for confirmation...");
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-      
-      console.log("Payment successful:", signature);
+      // Short wait for network propagation
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       onPaymentComplete?.(signature);
       onClose();
