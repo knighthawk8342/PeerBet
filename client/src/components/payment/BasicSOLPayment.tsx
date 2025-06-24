@@ -78,18 +78,17 @@ export function BasicSOLPayment({
       // Create transaction and set required fields
       const transaction = new Transaction().add(transferInstruction);
       
-      // Get recent blockhash and set transaction properties
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
-
       console.log("Requesting Phantom signature...");
       
-      // Sign transaction with Phantom
+      // Sign transaction with Phantom (Phantom will add the blockhash)
       const signedTransaction = await window.solana.signTransaction(transaction);
       console.log("Transaction signed successfully");
 
-      // Send transaction
+      // Get fresh blockhash right before sending
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      signedTransaction.recentBlockhash = blockhash;
+
+      // Send transaction immediately after getting fresh blockhash
       const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
         maxRetries: 3,
         skipPreflight: false,
