@@ -91,6 +91,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Payment signature required" });
       }
 
+      // Reject test signatures - only allow real blockchain transactions
+      if (validatedData.paymentSignature.startsWith('test_signature_') || 
+          validatedData.paymentSignature.startsWith('phantom_') ||
+          validatedData.paymentSignature.startsWith('signed_tx_')) {
+        return res.status(400).json({ message: "Real SOL payment required. Test signatures not accepted." });
+      }
+
+      // Basic signature validation - real Solana signatures are base58 encoded and typically 87-88 characters
+      if (validatedData.paymentSignature.length < 80 || validatedData.paymentSignature.length > 90) {
+        return res.status(400).json({ message: "Invalid payment signature format" });
+      }
+
       // Create market with payment signature
       const market = await storage.createMarket({
         title: validatedData.title,
@@ -295,19 +307,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         marketId: closedMarket.id,
         type: "refund",
         amount: stakeAmount.toString(),
-        description: `Market closed - refund pending: ${closedMarket.title}`,
+        description: `Market closed - manual refund required: ${closedMarket.title}`,
       });
       
       res.json({
         market: closedMarket,
         refund: {
           amount: stakeAmount.toString(),
-          status: "pending_manual_refund"
+          status: "pending_manual_refund",
+          message: "Refund will be processed manually by admin"
         }
       });
     } catch (error) {
       console.error("Error closing market:", error);
       res.status(500).json({ message: error.message || "Failed to close market" });
+    }
+  });
+
+  // Admin refunds endpoint
+  app.get('/api/admin/refunds', requireWalletAuth, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      // Check if user is admin
+      const adminWallets = ["225uwqkTBvk9P8h7KaQNvmz5mAL4M5cUVMrJfU3zk5xP", "3Wsd58mfJMq3hmsNwaZe896ny91ZaAaugfjBLuNYiAh4"];
+      if (!adminWallets.includes(user.id)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Get all refund transactions
+      const refunds = await storage.getUserTransactions('all');
+      const refundTransactions = refunds.filter((t: any) => t.type === 'refund');
+      
+      res.json(refundTransactions);
+    } catch (error) {
+      console.error("Error fetching refunds:", error);
+      res.status(500).json({ message: "Failed to fetch refunds" });
     }
   });
 

@@ -42,28 +42,41 @@ export function SimpleSOLTransfer({
     try {
       console.log("Requesting SOL transfer via Phantom...");
       
-      // Use Phantom's request method for transfers which is more reliable
-      const result = await window.solana.request({
-        method: "sol_requestTransfer",
-        params: {
-          recipient: TREASURY_WALLET,
-          amount: parseFloat(amount)
-        }
-      });
-
-      console.log("Transfer result:", result);
+      // Try multiple methods to send SOL transaction
+      let signature = null;
       
-      if (result && result.signature) {
-        toast({
-          title: "Payment Successful",
-          description: `Successfully sent ${amount} SOL`,
-        });
-        
-        onPaymentComplete?.(result.signature);
-        onClose();
+      // Method 1: Use standard transaction signing (most reliable)
+      const { Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+      
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: new PublicKey(publicKey),
+          toPubkey: new PublicKey(TREASURY_WALLET),
+          lamports: Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL),
+        })
+      );
+
+      // Use Phantom's signAndSendTransaction which handles everything
+      if (window.solana.signAndSendTransaction) {
+        const result = await window.solana.signAndSendTransaction(transaction);
+        signature = result.signature || result;
       } else {
-        throw new Error("No signature returned from transfer");
+        throw new Error("Phantom wallet does not support required transaction methods");
       }
+
+      if (!signature) {
+        throw new Error("Failed to get transaction signature");
+      }
+
+      console.log("SOL transfer successful:", signature);
+      
+      toast({
+        title: "Payment Successful",
+        description: `Successfully sent ${amount} SOL`,
+      });
+      
+      onPaymentComplete?.(signature);
+      onClose();
       
     } catch (error: any) {
       console.error("Transfer error:", error);
@@ -74,16 +87,11 @@ export function SimpleSOLTransfer({
           description: "You cancelled the transaction",
         });
       } else {
-        // Generate a mock signature for testing purposes since real transfers might fail in dev
-        const mockSignature = `test_signature_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        
         toast({
-          title: "Payment Completed (Test Mode)",
-          description: `Test payment of ${amount} SOL processed`,
+          title: "Payment Failed",
+          description: "SOL transfer failed. Please try again or check your wallet connection.",
+          variant: "destructive",
         });
-        
-        onPaymentComplete?.(mockSignature);
-        onClose();
       }
     } finally {
       setIsProcessing(false);
