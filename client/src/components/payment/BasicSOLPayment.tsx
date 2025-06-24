@@ -62,11 +62,38 @@ export function BasicSOLPayment({
       const solanaWeb3 = await import('@solana/web3.js');
       const { PublicKey, Transaction, SystemProgram, Connection } = solanaWeb3;
       
-      // Use QuickNode free mainnet RPC
-      const connection = new Connection("https://api.mainnet-beta.solana.com", {
-        commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 60000,
-      });
+      // Try multiple RPC endpoints for better reliability
+      const rpcEndpoints = [
+        "https://solana-mainnet.g.alchemy.com/v2/demo",
+        "https://api.mainnet-beta.solana.com",
+        "https://rpc.ankr.com/solana"
+      ];
+      
+      let connection;
+      let workingRpc = null;
+      
+      // Find a working RPC endpoint
+      for (const rpc of rpcEndpoints) {
+        try {
+          const testConnection = new Connection(rpc, {
+            commitment: 'confirmed',
+            confirmTransactionInitialTimeout: 30000,
+          });
+          // Test the connection
+          await testConnection.getLatestBlockhash('confirmed');
+          connection = testConnection;
+          workingRpc = rpc;
+          console.log(`Using RPC: ${rpc}`);
+          break;
+        } catch (rpcError) {
+          console.log(`RPC ${rpc} failed, trying next...`);
+          continue;
+        }
+      }
+      
+      if (!connection || !workingRpc) {
+        throw new Error("All Solana RPC endpoints are currently unavailable. Please try again later.");
+      }
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -79,28 +106,17 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and get recent blockhash with retry logic
+      // Create transaction and get recent blockhash
       const transaction = new Transaction().add(transferInstruction);
       
-      let retries = 3;
-      let blockhash;
-      
-      while (retries > 0) {
-        try {
-          const blockHashInfo = await connection.getLatestBlockhash('confirmed');
-          blockhash = blockHashInfo.blockhash;
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = fromPubkey;
-          break;
-        } catch (blockError) {
-          console.error(`Failed to get blockhash (attempt ${4 - retries}):`, blockError);
-          retries--;
-          if (retries === 0) {
-            throw new Error("Unable to connect to Solana network. Please check your internet connection and try again.");
-          }
-          // Wait 1 second before retry
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      try {
+        const blockHashInfo = await connection.getLatestBlockhash('confirmed');
+        transaction.recentBlockhash = blockHashInfo.blockhash;
+        transaction.feePayer = fromPubkey;
+        console.log(`Got blockhash from ${workingRpc}`);
+      } catch (blockError) {
+        console.error("Failed to get blockhash:", blockError);
+        throw new Error("Unable to prepare transaction. Please try again in a few moments.");
       }
 
       console.log("Requesting Phantom signature...");
