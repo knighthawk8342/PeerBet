@@ -123,6 +123,8 @@ Changelog:
 - June 24, 2025. Confirmed hosting platform limitation persists in production deployment
 - June 24, 2025. Implemented strict payment validation - markets only created with confirmed SOL transfers
 - June 24, 2025. System now properly prevents market creation without verified blockchain transactions
+- June 24, 2025. Confirmed all Solana RPC endpoints blocked in Replit environment (browser and server)
+- June 24, 2025. Application requires deployment to unrestricted hosting for real SOL transactions
 ```
 
 ## User Preferences

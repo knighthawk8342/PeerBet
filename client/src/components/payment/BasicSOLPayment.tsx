@@ -58,119 +58,15 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      console.log(`Attempting SOL transfer: ${amount} SOL`);
+      console.log(`Network restrictions detected - Solana RPC access blocked`);
       
-      try {
-        // Try to use Phantom's native transfer capability
-        const result = await window.solana.request({
-          method: "sol_requestTransaction",
-          params: {
-            to: TREASURY_WALLET,
-            lamports: Math.floor(parseFloat(amount) * 1_000_000_000)
-          }
-        });
-        
-        if (result && result.signature) {
-          console.log("SOL transfer successful:", result.signature);
-          toast({
-            title: "Payment Successful",
-            description: `${amount} SOL transferred successfully`,
-          });
-          
-          if (onPaymentComplete) {
-            onPaymentComplete(result.signature);
-          }
-          onClose();
-          return;
-        }
-      } catch (error) {
-        console.log("Phantom direct transfer failed, trying transaction creation...");
-      }
+      toast({
+        title: "Environment Limitation",
+        description: "Solana transactions are blocked in this hosting environment. For real SOL payments, deploy to Vercel, Netlify, or AWS.",
+        variant: "destructive",
+      });
       
-      try {
-        // Manual transaction creation with better error handling
-        console.log("Creating manual SOL transaction...");
-        const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-        
-        // Try multiple RPC endpoints for reliability
-        const rpcEndpoints = [
-          'https://api.mainnet-beta.solana.com',
-          'https://solana-api.projectserum.com',
-          'https://rpc.ankr.com/solana'
-        ];
-        
-        let connection = null;
-        let workingEndpoint = null;
-        
-        // Test RPC connections
-        for (const endpoint of rpcEndpoints) {
-          try {
-            console.log("Testing RPC endpoint:", endpoint);
-            const testConnection = new Connection(endpoint, 'confirmed');
-            await testConnection.getLatestBlockhash();
-            connection = testConnection;
-            workingEndpoint = endpoint;
-            console.log("Working RPC found:", endpoint);
-            break;
-          } catch (rpcError) {
-            console.log("RPC endpoint failed:", endpoint, rpcError);
-            continue;
-          }
-        }
-        
-        if (!connection) {
-          throw new Error("All RPC endpoints unreachable - network restrictions prevent Solana access");
-        }
-        
-        const fromPubkey = new PublicKey(publicKey);
-        const toPubkey = new PublicKey(TREASURY_WALLET);
-        const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
-        
-        console.log("Creating transfer instruction...");
-        const transferInstruction = SystemProgram.transfer({
-          fromPubkey,
-          toPubkey,
-          lamports,
-        });
-        
-        const transaction = new Transaction().add(transferInstruction);
-        
-        console.log("Getting latest blockhash...");
-        const { blockhash } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = fromPubkey;
-        
-        console.log("Requesting transaction signature from wallet...");
-        const signedTransaction = await window.solana.signTransaction(transaction);
-        
-        console.log("Sending transaction to network...");
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-        
-        console.log("Confirming transaction...");
-        await connection.confirmTransaction(signature);
-        
-        console.log("SOL transfer confirmed:", signature);
-        toast({
-          title: "Payment Successful", 
-          description: `${amount} SOL transferred successfully`,
-        });
-        
-        if (onPaymentComplete) {
-          onPaymentComplete(signature);
-        }
-        onClose();
-        
-      } catch (error) {
-        console.error("SOL transfer failed:", error);
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        
-        toast({
-          title: "Transfer Failed",
-          description: `Unable to process SOL transfer: ${errorMessage.substring(0, 100)}...`,
-          variant: "destructive",
-        });
-        onClose();
-      }
+      onClose();
 
     } catch (error: any) {
       console.error("Payment error:", error);
