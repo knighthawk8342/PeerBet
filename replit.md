@@ -125,6 +125,7 @@ Changelog:
 - June 24, 2025. System now properly prevents market creation without verified blockchain transactions
 - June 24, 2025. Confirmed all Solana RPC endpoints blocked in Replit environment (browser and server)
 - June 24, 2025. Application requires deployment to unrestricted hosting for real SOL transactions
+- June 24, 2025. Prepared Vercel deployment configuration with proper build scripts and API routing
 ```
 
 ## User Preferences

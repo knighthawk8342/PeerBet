@@ -58,15 +58,82 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      console.log(`Network restrictions detected - Solana RPC access blocked`);
+      console.log(`Processing ${amount} SOL payment...`);
       
-      toast({
-        title: "Environment Limitation",
-        description: "Solana transactions are blocked in this hosting environment. For real SOL payments, deploy to Vercel, Netlify, or AWS.",
-        variant: "destructive",
-      });
+      try {
+        // Try Phantom's native transfer first
+        const result = await window.solana.request({
+          method: "sol_requestTransaction",
+          params: {
+            to: TREASURY_WALLET,
+            lamports: Math.floor(parseFloat(amount) * 1_000_000_000)
+          }
+        });
+        
+        if (result?.signature) {
+          console.log("SOL transfer successful:", result.signature);
+          toast({
+            title: "Payment Successful",
+            description: `${amount} SOL transferred successfully`,
+          });
+          
+          if (onPaymentComplete) {
+            onPaymentComplete(result.signature);
+          }
+          onClose();
+          return;
+        }
+      } catch (error) {
+        console.log("Phantom direct transfer failed, trying manual transaction...");
+      }
       
-      onClose();
+      try {
+        // Manual transaction creation
+        const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+        
+        const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+        
+        const fromPubkey = new PublicKey(publicKey);
+        const toPubkey = new PublicKey(TREASURY_WALLET);
+        const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
+        
+        const transferInstruction = SystemProgram.transfer({
+          fromPubkey,
+          toPubkey,
+          lamports,
+        });
+        
+        const transaction = new Transaction().add(transferInstruction);
+        
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = fromPubkey;
+        
+        const signedTransaction = await window.solana.signTransaction(transaction);
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        
+        await connection.confirmTransaction(signature);
+        
+        console.log("SOL transfer confirmed:", signature);
+        toast({
+          title: "Payment Successful", 
+          description: `${amount} SOL transferred successfully`,
+        });
+        
+        if (onPaymentComplete) {
+          onPaymentComplete(signature);
+        }
+        onClose();
+        
+      } catch (error) {
+        console.error("SOL transfer failed:", error);
+        toast({
+          title: "Transfer Failed",
+          description: "Unable to process SOL transfer. Please try again.",
+          variant: "destructive",
+        });
+        onClose();
+      }
 
     } catch (error: any) {
       console.error("Payment error:", error);
