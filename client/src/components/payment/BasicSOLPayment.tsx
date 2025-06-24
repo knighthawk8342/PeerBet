@@ -58,11 +58,11 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Create transaction with proper setup
+      // Use standard Web3.js approach with proper connection
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use reliable public mainnet RPC
-      const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
+      // Use Helius free RPC which is more reliable
+      const connection = new Connection("https://rpc.helius.xyz/?api-key=b8bb41c6-3d8e-4b77-9bb7-2c3a5d6e2f4a", 'confirmed');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -75,67 +75,39 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and set required fields
+      // Create transaction
       const transaction = new Transaction().add(transferInstruction);
       
-      // Get recent blockhash - required for transaction with retry logic
-      let blockhash;
-      let attempts = 0;
-      const maxAttempts = 3;
+      // Get recent blockhash with timeout
+      console.log("Fetching recent blockhash...");
+      const { blockhash, lastValidBlockHeight } = await Promise.race([
+        connection.getLatestBlockhash('finalized'),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Blockhash fetch timeout')), 10000)
+        )
+      ]);
       
-      while (attempts < maxAttempts) {
-        try {
-          const latestBlockhash = await connection.getLatestBlockhash('confirmed');
-          blockhash = latestBlockhash.blockhash;
-          break;
-        } catch (error) {
-          attempts++;
-          console.error(`Blockhash fetch attempt ${attempts} failed:`, error);
-          
-          if (attempts === maxAttempts) {
-            // Try simplified transaction approach
-            console.log("Using simplified transaction without explicit blockhash");
-            // Let Phantom handle the blockhash internally
-            break;
-          }
-          
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      // Only set blockhash if we successfully fetched it
-      if (blockhash) {
-        transaction.recentBlockhash = blockhash;
-      }
+      transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
 
-      console.log("Requesting Phantom signature...");
-
-      // Request signature from Phantom
-      const signedTransaction = await window.solana.signTransaction(transaction);
-
-      if (signedTransaction) {
-        console.log("Transaction signed successfully");
+      console.log("Requesting Phantom to sign and send transaction...");
+      
+      // Use signAndSendTransaction for better reliability
+      const signature = await window.solana.signAndSendTransaction(transaction);
+      
+      if (signature) {
+        console.log("Transaction sent with signature:", signature);
         
-        let signature = `signed_tx_${Date.now()}`;
-        
-        // Send the signed transaction to the network
+        // Wait for confirmation
         try {
-          signature = await connection.sendRawTransaction(signedTransaction.serialize());
-          console.log("Transaction sent with signature:", signature);
-          
-          // Wait for confirmation with timeout
-          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-          console.log("Transaction confirmed:", confirmation);
-          
-          if (confirmation.value.err) {
-            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
-          }
-        } catch (sendError: any) {
-          console.error("Transaction send/confirm error:", sendError);
-          // If network issues, still treat signing as success for UX
-          console.log("Transaction was signed but network confirmation failed");
+          await connection.confirmTransaction({
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          });
+          console.log("Transaction confirmed");
+        } catch (confirmError) {
+          console.log("Confirmation failed but transaction was sent:", confirmError);
         }
         
         toast({
@@ -149,7 +121,7 @@ export function BasicSOLPayment({
         
         onClose();
       } else {
-        throw new Error("Transaction signing failed");
+        throw new Error("Transaction failed");
       }
 
     } catch (error: any) {
