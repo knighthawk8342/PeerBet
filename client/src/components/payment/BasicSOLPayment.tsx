@@ -60,8 +60,36 @@ export function BasicSOLPayment({
 
       console.log("Creating basic Solana transaction...");
       
-      // Use Phantom's signAndSendTransaction with minimal transaction
-      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      // Use the standard approach with connection for blockhash
+      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      
+      // Use multiple RPC endpoints as fallback
+      const rpcEndpoints = [
+        "https://api.mainnet-beta.solana.com",
+        "https://solana-api.projectserum.com",
+        "https://rpc.ankr.com/solana"
+      ];
+      
+      let connection;
+      let blockhash;
+      
+      // Try different RPC endpoints until one works
+      for (const endpoint of rpcEndpoints) {
+        try {
+          connection = new Connection(endpoint, { commitment: 'confirmed' });
+          const result = await connection.getLatestBlockhash();
+          blockhash = result.blockhash;
+          console.log(`Successfully got blockhash from ${endpoint}`);
+          break;
+        } catch (error) {
+          console.log(`Failed to get blockhash from ${endpoint}:`, error);
+          continue;
+        }
+      }
+      
+      if (!blockhash) {
+        throw new Error("Unable to get blockhash from any RPC endpoint");
+      }
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -74,16 +102,21 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction - let Phantom handle blockhash
+      // Create transaction with proper blockhash
       const transaction = new Transaction().add(transferInstruction);
+      transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
 
-      console.log("Requesting Phantom to handle complete transaction...");
+      console.log("Requesting Phantom signature...");
       
-      // Use Phantom's signAndSendTransaction - it handles blockhash internally
-      const signature = await window.solana.signAndSendTransaction(transaction);
+      // Sign transaction with Phantom
+      const signedTransaction = await window.solana.signTransaction(transaction);
       
-      if (signature) {
+      if (signedTransaction) {
+        console.log("Transaction signed successfully");
+        
+        // Send the signed transaction
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
         console.log("Transaction sent with signature:", signature);
         
         toast({
@@ -97,7 +130,7 @@ export function BasicSOLPayment({
         
         onClose();
       } else {
-        throw new Error("Transaction failed");
+        throw new Error("Transaction signing failed");
       }
 
     } catch (error: any) {
