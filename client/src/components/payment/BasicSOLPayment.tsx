@@ -63,8 +63,31 @@ export function BasicSOLPayment({
       
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use mainnet instead of devnet (this is the key difference)
-      const connection = new Connection("https://api.mainnet-beta.solana.com");
+      // Try multiple RPC endpoints for reliability
+      const rpcEndpoints = [
+        "https://rpc.ankr.com/solana",
+        "https://solana-mainnet.rpc.extrnode.com",
+        "https://api.mainnet-beta.solana.com",
+        "https://solana.public-rpc.com"
+      ];
+      
+      let connection;
+      for (const endpoint of rpcEndpoints) {
+        try {
+          connection = new Connection(endpoint);
+          // Test the connection
+          await connection.getLatestBlockhash();
+          console.log("Using RPC endpoint:", endpoint);
+          break;
+        } catch (error) {
+          console.log("RPC endpoint failed:", endpoint);
+          continue;
+        }
+      }
+      
+      if (!connection) {
+        throw new Error("All RPC endpoints failed");
+      }
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
