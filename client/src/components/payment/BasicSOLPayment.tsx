@@ -58,11 +58,10 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use standard Web3.js approach with proper connection
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      console.log("Creating basic Solana transaction...");
       
-      // Use Helius free RPC which is more reliable
-      const connection = new Connection("https://rpc.helius.xyz/?api-key=b8bb41c6-3d8e-4b77-9bb7-2c3a5d6e2f4a", 'confirmed');
+      // Use Phantom's signAndSendTransaction with minimal transaction
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -75,40 +74,17 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction
+      // Create transaction - let Phantom handle blockhash
       const transaction = new Transaction().add(transferInstruction);
-      
-      // Get recent blockhash with timeout
-      console.log("Fetching recent blockhash...");
-      const { blockhash, lastValidBlockHeight } = await Promise.race([
-        connection.getLatestBlockhash('finalized'),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Blockhash fetch timeout')), 10000)
-        )
-      ]);
-      
-      transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
 
-      console.log("Requesting Phantom to sign and send transaction...");
+      console.log("Requesting Phantom to handle complete transaction...");
       
-      // Use signAndSendTransaction for better reliability
+      // Use Phantom's signAndSendTransaction - it handles blockhash internally
       const signature = await window.solana.signAndSendTransaction(transaction);
       
       if (signature) {
         console.log("Transaction sent with signature:", signature);
-        
-        // Wait for confirmation
-        try {
-          await connection.confirmTransaction({
-            signature,
-            blockhash,
-            lastValidBlockHeight
-          });
-          console.log("Transaction confirmed");
-        } catch (confirmError) {
-          console.log("Confirmation failed but transaction was sent:", confirmError);
-        }
         
         toast({
           title: "Payment Successful",
