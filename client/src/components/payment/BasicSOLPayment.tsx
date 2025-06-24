@@ -64,6 +64,8 @@ export function BasicSOLPayment({
       
       // Try multiple RPC endpoints for better reliability
       const rpcEndpoints = [
+        "https://mainnet.helius-rpc.com/?api-key=demo",
+        "https://rpc.helius.xyz/?api-key=demo",
         "https://solana-mainnet.g.alchemy.com/v2/demo",
         "https://api.mainnet-beta.solana.com",
         "https://rpc.ankr.com/solana"
