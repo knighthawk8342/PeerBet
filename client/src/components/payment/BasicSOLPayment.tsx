@@ -58,95 +58,53 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      console.log(`Initiating ${amount} SOL transfer from ${publicKey} to ${TREASURY_WALLET}`);
-
-      // Create SOL transfer transaction
-      console.log("Creating SOL transfer transaction...");
+      console.log(`Processing ${amount} SOL payment...`);
       
-      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
-      
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
-      
-      // Use Helius RPC for better reliability
-      const rpcEndpoints = [
-        "https://mainnet.helius-rpc.com/?api-key=b8bb41c6-3d8e-4b77-9bb7-2c3a5d6e2f4a",
-        "https://rpc.helius.xyz/?api-key=b8bb41c6-3d8e-4b77-9bb7-2c3a5d6e2f4a",
-        "https://api.mainnet-beta.solana.com"
-      ];
-      
-      let connection;
-      let blockhash;
-      let lastError;
-      
-      // Try multiple endpoints until one works
-      for (const endpoint of rpcEndpoints) {
-        try {
-          console.log(`Trying RPC endpoint: ${endpoint}`);
-          connection = new Connection(endpoint, { commitment: 'confirmed' });
-          const result = await Promise.race([
-            connection.getLatestBlockhash(),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout')), 8000)
-            )
-          ]);
-          blockhash = result.blockhash;
-          console.log(`Successfully connected to ${endpoint}`);
-          break;
-        } catch (error) {
-          console.log(`Failed to connect to ${endpoint}:`, error.message);
-          lastError = error;
-          continue;
-        }
-      }
-      
-      if (!blockhash) {
-        throw new Error(`All RPC endpoints failed. Last error: ${lastError?.message || 'Unknown error'}`);
-      }
+      // Since external RPC access is restricted in this environment,
+      // we'll use a minimal transaction approach that lets Phantom handle everything
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
-      
+      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+
+      // Create minimal transfer instruction
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
         lamports,
       });
-      
-      const transaction = new Transaction().add(transferInstruction);
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
-      
-      console.log("Requesting Phantom to sign transaction...");
-      
-      // Sign transaction with Phantom
-      const signedTransaction = await window.solana.signTransaction(transaction);
-      
-      console.log("Transaction signed, sending to network...");
-      
-      // Send the signed transaction
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-      
-      console.log("Transaction sent, waiting for confirmation...");
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
-      
-      if (signature) {
-        console.log("Payment successful:", signature);
-        
-        toast({
-          title: "Payment Successful",
-          description: `Successfully sent ${amount} SOL`,
-        });
 
-        if (onPaymentComplete) {
-          onPaymentComplete(signature);
-        }
-        
-        onClose();
+      // Create basic transaction without explicit blockhash
+      const transaction = new Transaction().add(transferInstruction);
+      transaction.feePayer = fromPubkey;
+
+      console.log("Requesting Phantom to sign and send transaction...");
+      
+      // Use Phantom's signAndSendTransaction which handles RPC internally
+      const result = await window.solana.signAndSendTransaction(transaction);
+      
+      let signature;
+      if (result && result.signature) {
+        signature = result.signature;
+      } else if (typeof result === 'string') {
+        signature = result;
       } else {
-        throw new Error("Transaction was not completed");
+        throw new Error("Transaction failed - no signature returned");
       }
+      
+      console.log("Payment successful:", signature);
+      
+      toast({
+        title: "Payment Successful",
+        description: `Successfully sent ${amount} SOL`,
+      });
+
+      if (onPaymentComplete) {
+        onPaymentComplete(signature);
+      }
+      
+      onClose();
 
     } catch (error: any) {
       console.error("Payment error:", error);
