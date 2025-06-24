@@ -148,7 +148,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create market with payment signature
       const market = await storage.createMarket({
-        ...validatedData,
+        title: validatedData.title,
+        description: validatedData.description,
+        category: validatedData.category,
+        expiryDate: validatedData.expiryDate,
         creatorId: user.id,
         stakeAmount: validatedData.stakeAmount.toString(),
         counterpartyStakeAmount: validatedData.counterpartyStakeAmount?.toString() || validatedData.stakeAmount.toString(),
@@ -340,39 +343,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Close the market
       const closedMarket = await storage.closeMarket(marketId, user.id);
       
-      // Refund the creator's stake since no one joined
+      // Create transaction record for refund tracking
       const stakeAmount = parseFloat(closedMarket.stakeAmount);
-      
-      let refundSignature = null;
-      try {
-        // Send actual SOL refund from treasury wallet
-        if (TREASURY_PRIVATE_KEY) {
-          refundSignature = await sendSOLRefund(user.id, stakeAmount);
-          console.log(`SOL refund successful: ${stakeAmount} SOL to ${user.id}, signature: ${refundSignature}`);
-        } else {
-          console.warn("Treasury private key not configured, skipping SOL refund");
-        }
-      } catch (refundError) {
-        console.error("SOL refund failed, but market still closed:", refundError);
-        // Continue with transaction record even if SOL refund fails
-      }
-      
-      // Create transaction record
       await storage.createTransaction({
         userId: user.id,
         marketId: closedMarket.id,
         type: "refund",
         amount: stakeAmount.toString(),
-        description: `Refund for closed market: ${closedMarket.title}${refundSignature ? ` (TX: ${refundSignature})` : ''}`,
-        paymentSignature: refundSignature,
+        description: `Market closed - refund pending: ${closedMarket.title}`,
       });
       
       res.json({
         market: closedMarket,
         refund: {
           amount: stakeAmount.toString(),
-          signature: refundSignature,
-          status: refundSignature ? "completed" : "pending"
+          status: "pending_manual_refund"
         }
       });
     } catch (error) {

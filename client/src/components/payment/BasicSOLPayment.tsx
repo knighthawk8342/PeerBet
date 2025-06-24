@@ -73,8 +73,20 @@ export function BasicSOLPayment({
         })
       );
 
-      // Use Phantom's signAndSendTransaction which handles all the complexity
-      const { signature } = await window.solana.signAndSendTransaction(transaction);
+      // Use more compatible transaction method
+      let signature;
+      
+      if (window.solana.signAndSendTransaction) {
+        // Method 1: Use signAndSendTransaction if available
+        const result = await window.solana.signAndSendTransaction(transaction);
+        signature = result.signature || result;
+      } else {
+        // Method 2: Fallback to sign + send manually
+        const signedTransaction = await window.solana.signTransaction(transaction);
+        const connection = new Connection("https://mainnet.helius-rpc.com/?api-key=public", 'confirmed');
+        signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      }
+      
       console.log("Transaction successful:", signature);
       
       toast({
