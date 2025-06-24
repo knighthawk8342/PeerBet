@@ -67,8 +67,41 @@ export function BasicSOLPayment({
       
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use mainnet for production testing
-      const connection = new Connection("https://api.mainnet-beta.solana.com");
+      // Use multiple RPC endpoints for reliability
+      const rpcEndpoints = [
+        "https://api.mainnet-beta.solana.com",
+        "https://solana-api.projectserum.com",
+        "https://rpc.ankr.com/solana"
+      ];
+      
+      let connection;
+      let blockhash;
+      let lastError;
+      
+      // Try multiple endpoints until one works
+      for (const endpoint of rpcEndpoints) {
+        try {
+          console.log(`Trying RPC endpoint: ${endpoint}`);
+          connection = new Connection(endpoint, { commitment: 'confirmed' });
+          const result = await Promise.race([
+            connection.getLatestBlockhash(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 8000)
+            )
+          ]);
+          blockhash = result.blockhash;
+          console.log(`Successfully connected to ${endpoint}`);
+          break;
+        } catch (error) {
+          console.log(`Failed to connect to ${endpoint}:`, error.message);
+          lastError = error;
+          continue;
+        }
+      }
+      
+      if (!blockhash) {
+        throw new Error(`All RPC endpoints failed. Last error: ${lastError?.message || 'Unknown error'}`);
+      }
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -80,7 +113,6 @@ export function BasicSOLPayment({
       });
       
       const transaction = new Transaction().add(transferInstruction);
-      const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
       
