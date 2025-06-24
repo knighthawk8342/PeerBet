@@ -4,62 +4,7 @@ import { storage } from "./storage";
 import { insertMarketSchema, joinMarketSchema, settleMarketRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import type { RequestHandler } from "express";
-import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import * as bs58 from "bs58";
-
 const PLATFORM_FEE_RATE = 0.02; // 2%
-
-// Solana configuration
-const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
-const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
-const connection = new Connection(SOLANA_RPC_URL, "confirmed");
-
-// Treasury wallet private key - in production, this should be in environment variables
-// For now, we'll need to set up the treasury wallet keypair
-const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
-
-// Function to send SOL refund from treasury wallet
-async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promise<string> {
-  try {
-    if (!TREASURY_PRIVATE_KEY) {
-      throw new Error("Treasury private key not configured");
-    }
-
-    // Create treasury keypair from private key
-    const treasuryKeypair = Keypair.fromSecretKey(bs58.decode(TREASURY_PRIVATE_KEY));
-    
-    // Verify treasury wallet address matches
-    if (treasuryKeypair.publicKey.toString() !== TREASURY_WALLET) {
-      throw new Error("Treasury private key does not match treasury wallet address");
-    }
-
-    const recipientPublicKey = new PublicKey(recipientAddress);
-    const lamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);
-
-    // Create transaction
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: treasuryKeypair.publicKey,
-        toPubkey: recipientPublicKey,
-        lamports,
-      })
-    );
-
-    // Send transaction
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [treasuryKeypair],
-      { commitment: "confirmed" }
-    );
-
-    console.log(`SOL refund sent: ${amountSOL} SOL to ${recipientAddress}, signature: ${signature}`);
-    return signature;
-  } catch (error) {
-    console.error("Failed to send SOL refund:", error);
-    throw error;
-  }
-}
 
 // Simple wallet-based authentication middleware
 const requireWalletAuth: RequestHandler = async (req: any, res, next) => {

@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { BasicSOLPayment } from "@/components/payment/BasicSOLPayment";
+import { SimpleSOLTransfer } from "@/components/payment/SimpleSOLTransfer";
 import type { Market } from "@shared/schema";
 
 interface JoinMarketModalProps {
