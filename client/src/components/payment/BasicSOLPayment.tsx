@@ -58,10 +58,11 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use the original working approach from Test4 market creation
-      console.log("Using proven transaction method...");
-      
+      // Create transaction with proper setup (WORKING VERSION)
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      
+      // Use QuickNode public mainnet RPC
+      const connection = new Connection("https://solana-mainnet.g.alchemy.com/v2/demo");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -74,24 +75,35 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction
+      // Create transaction and set required fields
       const transaction = new Transaction().add(transferInstruction);
+      
+      // Get recent blockhash and set transaction properties
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
 
       console.log("Requesting Phantom signature...");
       
-      // Sign transaction with Phantom (let Phantom handle blockhash)
+      // Sign transaction with Phantom
       const signedTransaction = await window.solana.signTransaction(transaction);
       console.log("Transaction signed successfully");
 
-      // Send via Phantom's sendTransaction (no RPC needed)
-      const signature = await window.solana.sendTransaction?.(signedTransaction, { preflightCommitment: 'processed' }) || 
-                        await window.solana.request({ method: 'sol_sendTransaction', params: [signedTransaction.serialize()] });
+      // Send transaction
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        maxRetries: 3,
+        skipPreflight: false,
+      });
       
       console.log("Transaction sent with signature:", signature);
 
-      // Wait for network propagation
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      console.log("Transaction processing complete");
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      console.log("Transaction confirmed:", confirmation);
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      }
 
       onPaymentComplete?.(signature);
       onClose();
