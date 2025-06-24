@@ -77,7 +77,7 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
   // Show payment modal if payment flow is initiated
   if (showPayment) {
     return (
-      <BasicSOLPayment
+      <SimpleSOLTransfer
         isOpen={showPayment}
         onClose={() => setShowPayment(false)}
         onPaymentComplete={handlePaymentComplete}
