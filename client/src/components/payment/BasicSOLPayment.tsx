@@ -58,27 +58,29 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use direct Phantom transfer without any external RPC calls
-      console.log("Using Phantom's built-in transfer method...");
+      // Create transaction but let Phantom handle EVERYTHING including blockhash
+      console.log("Creating transaction for Phantom to handle completely...");
       
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      
+      const fromPubkey = new PublicKey(publicKey);
+      const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
-      
-      console.log("Requesting Phantom to send SOL transfer...");
-      
-      // Use Phantom's request method for direct SOL transfer
-      const response = await window.solana.request({
-        method: "solana_sendTransaction",
-        params: [
-          {
-            from: publicKey,
-            to: TREASURY_WALLET,
-            value: lamports,
-          }
-        ]
+
+      // Create minimal transaction - NO blockhash, NO fee payer
+      const transferInstruction = SystemProgram.transfer({
+        fromPubkey,
+        toPubkey,
+        lamports,
       });
       
-      const signature = response.signature || response;
-      console.log("Transfer completed with signature:", signature);
+      const transaction = new Transaction().add(transferInstruction);
+      
+      console.log("Requesting Phantom to sign and send (Phantom handles blockhash)...");
+      
+      // Let Phantom handle EVERYTHING - it will add blockhash, fee payer, and send
+      const signature = await window.solana.signAndSendTransaction(transaction);
+      console.log("Transaction completed with signature:", signature);
       
       // Wait for network propagation
       await new Promise(resolve => setTimeout(resolve, 2000));
