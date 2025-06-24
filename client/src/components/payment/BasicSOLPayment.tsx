@@ -3,6 +3,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+
+// Use multiple RPC endpoints for better reliability
+const RPC_ENDPOINTS = [
+  "https://api.mainnet-beta.solana.com",
+  "https://solana-api.projectserum.com",
+  "https://rpc.ankr.com/solana"
+];
+
+// Create connection with retry logic
+function createSolanaConnection() {
+  const endpoint = RPC_ENDPOINTS[Math.floor(Math.random() * RPC_ENDPOINTS.length)];
+  return new Connection(endpoint, {
+    commitment: 'confirmed',
+    confirmTransactionInitialTimeout: 60000,
+  });
+}
 
 interface BasicSOLPaymentProps {
   isOpen: boolean;
@@ -58,15 +75,12 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Create transaction with proper setup
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
-      
-      // Use QuickNode public mainnet RPC
-      const connection = new Connection("https://solana-mainnet.g.alchemy.com/v2/demo");
+      // Create connection using our reliable RPC endpoints
+      const connection = createSolanaConnection();
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
-      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+      const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
 
       // Create transfer instruction
       const transferInstruction = SystemProgram.transfer({
@@ -78,8 +92,27 @@ export function BasicSOLPayment({
       // Create transaction and set required fields
       const transaction = new Transaction().add(transferInstruction);
       
-      // Get recent blockhash - required for transaction
-      const { blockhash } = await connection.getLatestBlockhash();
+      // Get recent blockhash with retry logic
+      let blockhash;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        try {
+          const result = await connection.getLatestBlockhash('confirmed');
+          blockhash = result.blockhash;
+          break;
+        } catch (error) {
+          attempts++;
+          console.log(`Blockhash fetch attempt ${attempts} failed:`, error);
+          if (attempts >= maxAttempts) {
+            throw new Error(`Failed to get blockhash after ${maxAttempts} attempts`);
+          }
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
 
