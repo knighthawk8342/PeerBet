@@ -61,8 +61,8 @@ export function BasicSOLPayment({
       // Create transaction with proper setup
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use QuickNode public mainnet RPC
-      const connection = new Connection("https://solana-mainnet.g.alchemy.com/v2/demo");
+      // Use reliable public mainnet RPC
+      const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -80,22 +80,34 @@ export function BasicSOLPayment({
       
       // Get recent blockhash - required for transaction with retry logic
       let blockhash;
-      try {
-        const latestBlockhash = await connection.getLatestBlockhash();
-        blockhash = latestBlockhash.blockhash;
-      } catch (error) {
-        console.error("Failed to get latest blockhash, trying alternative method:", error);
-        // Fallback to deprecated method if new one fails
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
         try {
-          blockhash = await connection.getRecentBlockhash();
-          blockhash = blockhash.blockhash;
-        } catch (fallbackError) {
-          console.error("Both blockhash methods failed:", fallbackError);
-          throw new Error("Unable to fetch blockhash from Solana network");
+          const latestBlockhash = await connection.getLatestBlockhash('confirmed');
+          blockhash = latestBlockhash.blockhash;
+          break;
+        } catch (error) {
+          attempts++;
+          console.error(`Blockhash fetch attempt ${attempts} failed:`, error);
+          
+          if (attempts === maxAttempts) {
+            // Try simplified transaction approach
+            console.log("Using simplified transaction without explicit blockhash");
+            // Let Phantom handle the blockhash internally
+            break;
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
       
-      transaction.recentBlockhash = blockhash;
+      // Only set blockhash if we successfully fetched it
+      if (blockhash) {
+        transaction.recentBlockhash = blockhash;
+      }
       transaction.feePayer = fromPubkey;
 
       console.log("Requesting Phantom signature...");
