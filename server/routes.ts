@@ -21,36 +21,36 @@ async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promi
       throw new Error("Treasury private key not configured");
     }
     
-    // Parse treasury private key from environment
-    const treasuryKey = process.env.TREASURY_PRIVATE_KEY.trim();
-    let secretKeyArray;
+    const treasuryKey = process.env.TREASURY_PRIVATE_KEY;
+    let treasuryKeypair;
     
     try {
-      // Remove any surrounding quotes or whitespace
-      const cleanKey = treasuryKey.replace(/^["']|["']$/g, '');
+      // Handle JSON array format or comma-separated
+      let secretKeyArray;
       
-      if (cleanKey.startsWith('[') && cleanKey.endsWith(']')) {
-        // JSON array format: [1,2,3,4,...]
-        secretKeyArray = JSON.parse(cleanKey);
+      if (typeof treasuryKey === 'string') {
+        const cleaned = treasuryKey.trim().replace(/^["']|["']$/g, '');
+        
+        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+          secretKeyArray = JSON.parse(cleaned);
+        } else if (cleaned.includes(',')) {
+          secretKeyArray = cleaned.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+        } else {
+          throw new Error("Private key must be JSON array or comma-separated numbers");
+        }
       } else {
-        // Comma-separated format: 1,2,3,4,...
-        secretKeyArray = cleanKey.split(',').map(str => {
-          const num = parseInt(str.trim());
-          if (isNaN(num)) throw new Error(`Invalid number: ${str.trim()}`);
-          return num;
-        });
+        secretKeyArray = treasuryKey;
       }
       
       if (!Array.isArray(secretKeyArray) || secretKeyArray.length !== 64) {
-        throw new Error(`Invalid secret key length: ${secretKeyArray?.length}. Expected 64 numbers.`);
+        throw new Error(`Expected 64 numbers, got ${secretKeyArray?.length}`);
       }
       
-      const treasuryKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
-      console.log(`Treasury wallet loaded: ${treasuryKeypair.publicKey.toBase58()}`);
+      treasuryKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
       
     } catch (error) {
-      console.error("Treasury key parsing failed:", error.message);
-      throw new Error(`Invalid treasury private key format: ${error.message}`);
+      console.error("Treasury key error:", error.message);
+      throw new Error(`Treasury setup failed: ${error.message}`);
     }
     
     const recipientPubkey = new PublicKey(recipientAddress);
