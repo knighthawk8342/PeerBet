@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { insertMarketSchema, joinMarketSchema, settleMarketRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import type { RequestHandler } from "express";
+import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import * as bs58 from "bs58";
 
 const PLATFORM_FEE_RATE = 0.02; // 2%
 
