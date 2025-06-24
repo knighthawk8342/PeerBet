@@ -62,10 +62,10 @@ export function BasicSOLPayment({
       const solanaWeb3 = await import('@solana/web3.js');
       const { PublicKey, Transaction, SystemProgram, Connection } = solanaWeb3;
       
-      // Use Helius mainnet RPC (more reliable than official endpoint)
-      const connection = new Connection("https://mainnet.helius-rpc.com/?api-key=demo", {
+      // Use QuickNode free mainnet RPC
+      const connection = new Connection("https://api.mainnet-beta.solana.com", {
         commitment: 'confirmed',
-        disableRetryOnRateLimit: false,
+        confirmTransactionInitialTimeout: 60000,
       });
       
       const fromPubkey = new PublicKey(publicKey);
