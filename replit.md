@@ -119,7 +119,8 @@ Changelog:
 - June 24, 2025. Enhanced UI with cancelled market status badges and dedicated "Closed" tab filter
 - June 24, 2025. Fixed Solana payment system connectivity issues and resolved blockhash fetching errors
 - June 24, 2025. Successfully tested payment flow with Phantom wallet integration - system working correctly
-- June 24, 2025. Switched back to mainnet for production testing with real SOL transactions
+- June 24, 2025. Identified infrastructure limitation: Replit environment blocks external RPC access for Solana transactions
+- June 24, 2025. All application features functional except SOL payments (requires production deployment)
 ```
 
 ## User Preferences
