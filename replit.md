@@ -117,6 +117,9 @@ Changelog:
 - June 24, 2025. Implemented odds functionality allowing asymmetric stakes between creator and joiner
 - June 24, 2025. Added close market feature for creators to cancel open markets with automatic refunds
 - June 24, 2025. Enhanced UI with cancelled market status badges and dedicated "Closed" tab filter
+- June 24, 2025. Implemented automatic SOL refunds from treasury wallet when markets are closed
+- June 24, 2025. Fixed treasury private key parsing to support base58 format and automatic refund transactions
+- June 24, 2025. Resolved Buffer compatibility issues in payment components for browser environment
 ```
 
 ## User Preferences

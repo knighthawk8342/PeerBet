@@ -58,10 +58,10 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Create transaction with proper setup
+      // Import Solana web3 components
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use QuickNode public mainnet RPC
+      // Use Alchemy mainnet RPC
       const connection = new Connection("https://solana-mainnet.g.alchemy.com/v2/demo");
       
       const fromPubkey = new PublicKey(publicKey);
@@ -75,71 +75,69 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and set required fields
+      // Create transaction and get recent blockhash
       const transaction = new Transaction().add(transferInstruction);
       
-      // Get recent blockhash - required for transaction
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
+      try {
+        const { blockhash } = await connection.getLatestBlockhash('confirmed');
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = fromPubkey;
+      } catch (blockError) {
+        console.error("Failed to get blockhash:", blockError);
+        throw new Error("Network unavailable. Please try again.");
+      }
 
       console.log("Requesting Phantom signature...");
-
-      // Request signature from Phantom
+      
+      // Sign transaction with Phantom
       const signedTransaction = await window.solana.signTransaction(transaction);
+      console.log("Transaction signed successfully");
 
-      if (signedTransaction) {
-        console.log("Transaction signed successfully");
-        
-        let signature = `signed_tx_${Date.now()}`;
-        
-        // Send the signed transaction to the network
-        try {
-          signature = await connection.sendRawTransaction(signedTransaction.serialize());
-          console.log("Transaction sent with signature:", signature);
-          
-          // Wait for confirmation with timeout
-          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-          console.log("Transaction confirmed:", confirmation);
-          
-          if (confirmation.value.err) {
-            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
-          }
-        } catch (sendError: any) {
-          console.error("Transaction send/confirm error:", sendError);
-          // If network issues, still treat signing as success for UX
-          console.log("Transaction was signed but network confirmation failed");
-        }
-        
-        toast({
-          title: "Payment Successful",
-          description: `Successfully sent ${amount} SOL`,
-        });
+      // Send transaction
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        maxRetries: 3,
+        skipPreflight: false,
+      });
+      
+      console.log("Transaction sent with signature:", signature);
 
-        if (onPaymentComplete) {
-          onPaymentComplete(signature);
-        }
-        
-        onClose();
-      } else {
-        throw new Error("Transaction signing failed");
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      console.log("Transaction confirmed:", confirmation);
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
       }
 
-    } catch (error: any) {
+      onPaymentComplete?.(signature);
+      onClose();
+
+      toast({
+        title: "Payment Successful",
+        description: `${amount} SOL sent successfully for ${action === "create" ? "creating" : "joining"} "${marketTitle}"`,
+      });
+
+    } catch (error) {
       console.error("Payment error:", error);
       
-      if (error.code === 4001 || error.message?.includes("rejected")) {
-        toast({
-          title: "Payment Cancelled",
-          description: "You cancelled the transaction",
-        });
-      } else {
-        toast({
-          title: "Payment Failed",
-          description: error.message || "Could not process payment",
-          variant: "destructive",
-        });
+      let errorMessage = "Payment failed. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes("User rejected")) {
+          errorMessage = "Transaction cancelled by user";
+        } else if (error.message.includes("insufficient")) {
+          errorMessage = "Insufficient SOL balance";
+        } else if (error.message.includes("Network")) {
+          errorMessage = "Network error. Please check your connection.";
+        } else {
+          errorMessage = error.message;
+        }
       }
+
+      toast({
+        title: "Payment Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -149,42 +147,50 @@ export function BasicSOLPayment({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>SOL Payment Required</DialogTitle>
+          <DialogTitle>
+            {action === "create" ? "Create Market Payment" : "Join Market Payment"}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-            <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-              {action === "create" ? "Creating Market" : "Joining Market"}
-            </div>
-            <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-              {marketTitle}
-            </div>
-            <div className="text-lg font-bold text-blue-900 dark:text-blue-100 mt-2">
-              Amount Required: {amount} SOL
+          <div className="p-4 bg-muted rounded-lg">
+            <h4 className="font-medium mb-2">Payment Details</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Market:</span>
+                <span className="font-medium">{marketTitle}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Amount:</span>
+                <span className="font-medium">{amount} SOL</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Action:</span>
+                <span className="font-medium capitalize">{action} Market</span>
+              </div>
             </div>
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Click "Pay with Phantom" to approve this SOL transfer.
-          </div>
-
-          <div className="flex gap-3">
-            <Button 
-              onClick={handlePayment}
-              disabled={isProcessing || !connected}
-              className="flex-1"
-            >
-              {isProcessing ? "Processing..." : "Pay with Phantom"}
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              disabled={isProcessing}
-            >
-              Cancel
-            </Button>
-          </div>
+          {!connected ? (
+            <div className="text-center text-muted-foreground">
+              Please connect your wallet to continue
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-4">
+                {amount} SOL will be sent from your wallet to complete this transaction
+              </p>
+              
+              <Button 
+                onClick={handlePayment} 
+                disabled={isProcessing || !connected}
+                className="w-full"
+                size="lg"
+              >
+                {isProcessing ? "Processing..." : `Pay ${amount} SOL`}
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
