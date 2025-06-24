@@ -58,47 +58,30 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use Phantom wallet for transaction with proper setup
-      console.log("Using Phantom wallet for transaction...");
+      // Use direct Phantom transfer without any external RPC calls
+      console.log("Using Phantom's built-in transfer method...");
       
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
-      
-      // Use a simple connection just for getting blockhash
-      const connection = new Connection("https://api.mainnet-beta.solana.com");
-      
-      const fromPubkey = new PublicKey(publicKey);
-      const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
-
-      // Create transfer instruction
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey,
-        toPubkey,
-        lamports,
+      
+      console.log("Requesting Phantom to send SOL transfer...");
+      
+      // Use Phantom's request method for direct SOL transfer
+      const response = await window.solana.request({
+        method: "solana_sendTransaction",
+        params: [
+          {
+            from: publicKey,
+            to: TREASURY_WALLET,
+            value: lamports,
+          }
+        ]
       });
-
-      // Create transaction with recent blockhash
-      const transaction = new Transaction().add(transferInstruction);
       
-      try {
-        // Get recent blockhash from Solana network
-        const { blockhash } = await connection.getLatestBlockhash('finalized');
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = fromPubkey;
-        console.log("Transaction prepared with blockhash");
-      } catch (error) {
-        console.error("Failed to get blockhash, trying Phantom's method anyway:", error);
-      }
-      
-      console.log("Requesting Phantom to sign and send transaction...");
-      
-      // Use Phantom's signAndSendTransaction method
-      const signature = await window.solana.signAndSendTransaction(transaction);
-      console.log("Transaction sent with signature:", signature);
+      const signature = response.signature || response;
+      console.log("Transfer completed with signature:", signature);
       
       // Wait for network propagation
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      console.log("Transaction processing complete");
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       onPaymentComplete?.(signature);
       onClose();
