@@ -21,9 +21,37 @@ async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promi
       throw new Error("Treasury private key not configured");
     }
     
-    const treasuryKeypair = Keypair.fromSecretKey(
-      new Uint8Array(JSON.parse(process.env.TREASURY_PRIVATE_KEY))
-    );
+    // Parse treasury private key from environment
+    const treasuryKey = process.env.TREASURY_PRIVATE_KEY.trim();
+    let secretKeyArray;
+    
+    try {
+      // Remove any surrounding quotes or whitespace
+      const cleanKey = treasuryKey.replace(/^["']|["']$/g, '');
+      
+      if (cleanKey.startsWith('[') && cleanKey.endsWith(']')) {
+        // JSON array format: [1,2,3,4,...]
+        secretKeyArray = JSON.parse(cleanKey);
+      } else {
+        // Comma-separated format: 1,2,3,4,...
+        secretKeyArray = cleanKey.split(',').map(str => {
+          const num = parseInt(str.trim());
+          if (isNaN(num)) throw new Error(`Invalid number: ${str.trim()}`);
+          return num;
+        });
+      }
+      
+      if (!Array.isArray(secretKeyArray) || secretKeyArray.length !== 64) {
+        throw new Error(`Invalid secret key length: ${secretKeyArray?.length}. Expected 64 numbers.`);
+      }
+      
+      const treasuryKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
+      console.log(`Treasury wallet loaded: ${treasuryKeypair.publicKey.toBase58()}`);
+      
+    } catch (error) {
+      console.error("Treasury key parsing failed:", error.message);
+      throw new Error(`Invalid treasury private key format: ${error.message}`);
+    }
     
     const recipientPubkey = new PublicKey(recipientAddress);
     const lamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);

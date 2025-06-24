@@ -53,7 +53,7 @@ export default function Home() {
 
   const closeMarketMutation = useMutation({
     mutationFn: async (marketId: number) => {
-      await apiRequest("POST", `/api/markets/${marketId}/close`);
+      return await apiRequest("POST", `/api/markets/${marketId}/close`);
     },
     onSuccess: (data: any) => {
       const refundStatus = data?.refund?.status;
