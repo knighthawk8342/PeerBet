@@ -58,44 +58,10 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Import Solana web3 components dynamically to avoid Buffer issues
-      const solanaWeb3 = await import('@solana/web3.js');
-      const { PublicKey, Transaction, SystemProgram, Connection } = solanaWeb3;
+      // Use Phantom wallet's built-in connection instead of external RPC
+      console.log("Using Phantom wallet for transaction...");
       
-      // Try multiple RPC endpoints for better reliability
-      const rpcEndpoints = [
-        "https://mainnet.helius-rpc.com/?api-key=demo",
-        "https://rpc.helius.xyz/?api-key=demo",
-        "https://solana-mainnet.g.alchemy.com/v2/demo",
-        "https://api.mainnet-beta.solana.com",
-        "https://rpc.ankr.com/solana"
-      ];
-      
-      let connection;
-      let workingRpc = null;
-      
-      // Find a working RPC endpoint
-      for (const rpc of rpcEndpoints) {
-        try {
-          const testConnection = new Connection(rpc, {
-            commitment: 'confirmed',
-            confirmTransactionInitialTimeout: 30000,
-          });
-          // Test the connection
-          await testConnection.getLatestBlockhash('confirmed');
-          connection = testConnection;
-          workingRpc = rpc;
-          console.log(`Using RPC: ${rpc}`);
-          break;
-        } catch (rpcError) {
-          console.log(`RPC ${rpc} failed, trying next...`);
-          continue;
-        }
-      }
-      
-      if (!connection || !workingRpc) {
-        throw new Error("All Solana RPC endpoints are currently unavailable. Please try again later.");
-      }
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -108,40 +74,18 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and get recent blockhash
+      // Create transaction and let Phantom handle everything
       const transaction = new Transaction().add(transferInstruction);
       
-      try {
-        const blockHashInfo = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockHashInfo.blockhash;
-        transaction.feePayer = fromPubkey;
-        console.log(`Got blockhash from ${workingRpc}`);
-      } catch (blockError) {
-        console.error("Failed to get blockhash:", blockError);
-        throw new Error("Unable to prepare transaction. Please try again in a few moments.");
-      }
-
-      console.log("Requesting Phantom signature...");
+      console.log("Requesting Phantom to sign and send transaction...");
       
-      // Sign transaction with Phantom
-      const signedTransaction = await window.solana.signTransaction(transaction);
-      console.log("Transaction signed successfully");
-
-      // Send transaction
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-        maxRetries: 3,
-        skipPreflight: false,
-      });
-      
+      // Use Phantom's signAndSendTransaction method which handles RPC internally
+      const signature = await window.solana.signAndSendTransaction(transaction);
       console.log("Transaction sent with signature:", signature);
-
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      console.log("Transaction confirmed:", confirmation);
-
-      if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
-      }
+      
+      // Simple wait for network propagation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log("Transaction processing complete");
 
       onPaymentComplete?.(signature);
       onClose();
