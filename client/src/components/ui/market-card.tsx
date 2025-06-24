@@ -6,9 +6,10 @@ import type { Market } from "@shared/schema";
 interface MarketCardProps {
   market: Market;
   onJoin: (market: Market) => void;
+  onClose?: (market: Market) => void;
 }
 
-export function MarketCard({ market, onJoin }: MarketCardProps) {
+export function MarketCard({ market, onJoin, onClose }: MarketCardProps) {
   const { publicKey } = useSolanaWallet();
   
   const getStatusBadge = () => {

@@ -277,6 +277,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Close market endpoint
+  app.post('/api/markets/:id/close', requireWalletAuth, async (req: any, res) => {
+    try {
+      const marketId = parseInt(req.params.id);
+      const user = req.user;
+      
+      // Close the market
+      const closedMarket = await storage.closeMarket(marketId, user.id);
+      
+      // Refund the creator's stake since no one joined
+      const stakeAmount = parseFloat(closedMarket.stakeAmount);
+      await storage.createTransaction({
+        userId: user.id,
+        marketId: closedMarket.id,
+        type: "refund",
+        amount: stakeAmount.toString(),
+        description: `Refund for closed market: ${closedMarket.title}`,
+      });
+      
+      res.json(closedMarket);
+    } catch (error) {
+      console.error("Error closing market:", error);
+      res.status(500).json({ message: error.message || "Failed to close market" });
+    }
+  });
+
   app.get('/api/markets/user', requireWalletAuth, async (req: any, res) => {
     try {
       const user = req.user;

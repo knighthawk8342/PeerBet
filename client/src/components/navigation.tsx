@@ -12,7 +12,7 @@ export function Navigation() {
   const navItems = [
     { path: "/", label: "Markets", active: location === "/" },
     { path: "/dashboard", label: "Dashboard", active: location === "/dashboard" },
-    { path: "/create", label: "Create Market", active: location === "/create" },
+    { path: "/create-market", label: "Create Market", active: location === "/create-market" },
   ];
 
   const handleWalletConnect = (publicKey: string) => {

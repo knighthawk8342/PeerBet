@@ -23,6 +23,7 @@ export interface IStorage {
   getMarket(id: number): Promise<Market | undefined>;
   joinMarket(marketId: number, counterpartyId: string): Promise<Market>;
   settleMarket(marketId: number, settlement: string): Promise<Market>;
+  closeMarket(marketId: number, creatorId: string): Promise<Market>;
   getUserMarkets(userId: string): Promise<Market[]>;
   
   // Transaction operations
@@ -124,6 +125,42 @@ export class DatabaseStorage implements IStorage {
     
     if (!market) {
       throw new Error("Market not found");
+    }
+    
+    return market;
+  }
+
+  async closeMarket(marketId: number, creatorId: string): Promise<Market> {
+    // First verify the market exists, belongs to the creator, and is still open
+    const existingMarket = await this.getMarket(marketId);
+    if (!existingMarket) {
+      throw new Error("Market not found");
+    }
+    
+    if (existingMarket.creatorId !== creatorId) {
+      throw new Error("Only the market creator can close this market");
+    }
+    
+    if (existingMarket.status !== "open") {
+      throw new Error("Market can only be closed if it's still open");
+    }
+    
+    if (existingMarket.counterpartyId) {
+      throw new Error("Market cannot be closed after someone has joined");
+    }
+    
+    // Update market status to cancelled
+    const [market] = await db
+      .update(markets)
+      .set({
+        status: "cancelled",
+        settledAt: new Date(),
+      })
+      .where(eq(markets.id, marketId))
+      .returning();
+    
+    if (!market) {
+      throw new Error("Failed to close market");
     }
     
     return market;
