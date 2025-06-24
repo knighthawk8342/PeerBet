@@ -58,30 +58,88 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      console.log(`Processing ${amount} SOL payment...`);
+      console.log(`Attempting SOL transfer: ${amount} SOL`);
       
-      // Note: Replit infrastructure blocks external RPC calls even in production
-      // This maintains full application functionality while acknowledging the hosting limitation
-      console.log("Processing payment within platform constraints...");
-      
-      // Simulate processing time for user experience
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Generate a realistic transaction signature format
-      const signature = `${Date.now()}${Math.random().toString(36).substr(2, 20)}`.substring(0, 88);
-      
-      console.log("Payment processed:", signature);
-      
-      toast({
-        title: "Payment Processed",
-        description: `Successfully processed ${amount} SOL payment`,
-      });
-
-      if (onPaymentComplete) {
-        onPaymentComplete(signature);
+      try {
+        // Try to use Phantom's native transfer capability
+        const result = await window.solana.request({
+          method: "sol_requestTransaction",
+          params: {
+            to: TREASURY_WALLET,
+            lamports: Math.floor(parseFloat(amount) * 1_000_000_000)
+          }
+        });
+        
+        if (result && result.signature) {
+          console.log("SOL transfer successful:", result.signature);
+          toast({
+            title: "Payment Successful",
+            description: `${amount} SOL transferred successfully`,
+          });
+          
+          if (onPaymentComplete) {
+            onPaymentComplete(result.signature);
+          }
+          onClose();
+          return;
+        }
+      } catch (error) {
+        console.log("Phantom direct transfer failed, trying transaction creation...");
       }
       
-      onClose();
+      try {
+        // Fallback to manual transaction creation
+        const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
+        
+        // Use a working RPC endpoint
+        const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+        
+        const fromPubkey = new PublicKey(publicKey);
+        const toPubkey = new PublicKey(TREASURY_WALLET);
+        const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
+        
+        // Create transfer instruction
+        const transferInstruction = SystemProgram.transfer({
+          fromPubkey,
+          toPubkey,
+          lamports,
+        });
+        
+        const transaction = new Transaction().add(transferInstruction);
+        
+        // Get recent blockhash
+        const { blockhash } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = fromPubkey;
+        
+        // Sign and send transaction
+        const signedTransaction = await window.solana.signTransaction(transaction);
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        
+        // Confirm transaction
+        await connection.confirmTransaction(signature);
+        
+        console.log("SOL transfer confirmed:", signature);
+        toast({
+          title: "Payment Successful", 
+          description: `${amount} SOL transferred successfully`,
+        });
+        
+        if (onPaymentComplete) {
+          onPaymentComplete(signature);
+        }
+        onClose();
+        
+      } catch (error) {
+        console.error("SOL transfer failed:", error);
+        toast({
+          title: "Transfer Failed",
+          description: "Unable to process SOL transfer. Market creation requires confirmed payment.",
+          variant: "destructive",
+        });
+        // Do not call onPaymentComplete - market should not be created
+        onClose();
+      }
 
     } catch (error: any) {
       console.error("Payment error:", error);
