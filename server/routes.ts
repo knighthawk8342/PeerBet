@@ -4,15 +4,8 @@ import { storage } from "./storage";
 import { insertMarketSchema, joinMarketSchema, settleMarketRequestSchema } from "@shared/schema";
 import { z } from "zod";
 import type { RequestHandler } from "express";
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
-import bs58 from "bs58";
 
 const PLATFORM_FEE_RATE = 0.02; // 2%
-
-// Solana configuration
-const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
-const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
-const connection = new Connection(SOLANA_RPC_URL, 'confirmed');
 
 // Helper function to send SOL refund
 async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promise<string> {

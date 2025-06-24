@@ -58,14 +58,10 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Restore original working approach that created Test4 market successfully
-      console.log("Using original working transaction method...");
+      // Use simple working approach from early implementation
+      console.log("Using simplified transaction approach...");
       
-      // Import Solana web3 components
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
-      
-      // Use reliable mainnet RPC
-      const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -78,27 +74,13 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and get blockhash
+      // Create basic transaction
       const transaction = new Transaction().add(transferInstruction);
       
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
+      console.log("Requesting Phantom to sign and send...");
       
-      console.log("Requesting Phantom to sign transaction...");
-      
-      // Sign transaction with Phantom
-      const signedTransaction = await window.solana.signTransaction(transaction);
-      
-      console.log("Transaction signed, sending to network...");
-      
-      // Send the signed transaction
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-      
-      console.log("Transaction sent, waiting for confirmation...");
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(signature, 'confirmed');
+      // Use Phantom's signAndSendTransaction which handles everything
+      const signature = await window.solana.signAndSendTransaction(transaction);
       
       console.log("Payment successful:", signature);
 
