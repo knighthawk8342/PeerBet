@@ -58,34 +58,44 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use Phantom's built-in signAndSendTransaction (handles blockhash internally)
-      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      // Use the EXACT working approach from SimpleSOLPayment but for mainnet
+      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
+      
+      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      
+      // Use mainnet instead of devnet (this is the key difference)
+      const connection = new Connection("https://api.mainnet-beta.solana.com");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
-      const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
-
-      // Create transfer instruction
+      
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
         lamports,
       });
-
-      // Create basic transaction (let Phantom handle everything)
+      
       const transaction = new Transaction().add(transferInstruction);
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
       
-      console.log("Requesting Phantom to handle transaction...");
+      console.log("Requesting Phantom to sign transaction...");
       
-      // Use Phantom's signAndSendTransaction - it handles blockhash, fee payer, and sending
-      const result = await window.solana.signAndSendTransaction(transaction);
-      const signature = result.signature || result;
+      // Sign transaction with Phantom (this should open the wallet)
+      const signedTransaction = await window.solana.signTransaction(transaction);
       
-      console.log("Transaction sent with signature:", signature);
-
-      // Wait for network propagation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      console.log("Transaction processing complete");
+      console.log("Transaction signed, sending to network...");
+      
+      // Send the signed transaction
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      
+      console.log("Transaction sent, waiting for confirmation...");
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      console.log("Payment successful:", signature);
 
       onPaymentComplete?.(signature);
       onClose();
