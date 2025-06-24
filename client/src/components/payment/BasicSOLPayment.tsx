@@ -58,10 +58,13 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use Phantom wallet's built-in connection instead of external RPC
+      // Use Phantom wallet for transaction with proper setup
       console.log("Using Phantom wallet for transaction...");
       
-      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      
+      // Use a simple connection just for getting blockhash
+      const connection = new Connection("https://api.mainnet-beta.solana.com");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -74,17 +77,27 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and let Phantom handle everything
+      // Create transaction with recent blockhash
       const transaction = new Transaction().add(transferInstruction);
+      
+      try {
+        // Get recent blockhash from Solana network
+        const { blockhash } = await connection.getLatestBlockhash('finalized');
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = fromPubkey;
+        console.log("Transaction prepared with blockhash");
+      } catch (error) {
+        console.error("Failed to get blockhash, trying Phantom's method anyway:", error);
+      }
       
       console.log("Requesting Phantom to sign and send transaction...");
       
-      // Use Phantom's signAndSendTransaction method which handles RPC internally
+      // Use Phantom's signAndSendTransaction method
       const signature = await window.solana.signAndSendTransaction(transaction);
       console.log("Transaction sent with signature:", signature);
       
-      // Simple wait for network propagation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for network propagation
+      await new Promise(resolve => setTimeout(resolve, 3000));
       console.log("Transaction processing complete");
 
       onPaymentComplete?.(signature);
