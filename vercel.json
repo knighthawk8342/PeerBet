@@ -1,23 +1,15 @@
 {
   "version": 2,
-  "buildCommand": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+  "buildCommand": "vite build && esbuild server/index.ts --platform=node --outfile=dist/index.js",
   "outputDirectory": "dist/public",
+
   "functions": {
-    "dist/index.js": {
-      "runtime": "@vercel/node"
-    }
+    "dist/index.js": { "runtime": "nodejs20.x" }    
   },
+
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/dist/index.js"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "src": "/api/(.*)", "dest": "/dist/index.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
