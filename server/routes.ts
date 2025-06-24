@@ -5,6 +5,7 @@ import { insertMarketSchema, joinMarketSchema, settleMarketRequestSchema } from 
 import { z } from "zod";
 import type { RequestHandler } from "express";
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 
 const PLATFORM_FEE_RATE = 0.02; // 2%
 
@@ -25,31 +26,67 @@ async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promi
     let treasuryKeypair;
     
     try {
-      // Handle JSON array format or comma-separated
       let secretKeyArray;
       
+      // Debug logging to see the actual format
+      console.log("Treasury key type:", typeof treasuryKey);
+      console.log("Treasury key length:", treasuryKey?.length);
+      console.log("Treasury key first 20 chars:", treasuryKey?.substring(0, 20));
+      
       if (typeof treasuryKey === 'string') {
-        const cleaned = treasuryKey.trim().replace(/^["']|["']$/g, '');
+        const cleaned = treasuryKey.trim();
         
+        // Try different parsing approaches
         if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+          // JSON array format
           secretKeyArray = JSON.parse(cleaned);
         } else if (cleaned.includes(',')) {
-          secretKeyArray = cleaned.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+          // Comma-separated format
+          secretKeyArray = cleaned.split(',').map(str => {
+            const num = parseInt(str.trim());
+            if (isNaN(num)) throw new Error(`Invalid number: "${str.trim()}"`);
+            return num;
+          });
+        } else if (cleaned.match(/^\d+(\s+\d+)*$/)) {
+          // Space-separated format
+          secretKeyArray = cleaned.split(/\s+/).map(str => {
+            const num = parseInt(str.trim());
+            if (isNaN(num)) throw new Error(`Invalid number: "${str.trim()}"`);
+            return num;
+          });
+        } else if (cleaned.length === 88 || cleaned.length === 44) {
+          // Try as base58 string (Solana wallet format)
+          try {
+            secretKeyArray = Array.from(bs58.decode(cleaned));
+          } catch {
+            throw new Error(`Failed to decode base58 private key`);
+          }
         } else {
-          throw new Error("Private key must be JSON array or comma-separated numbers");
+          throw new Error(`Unsupported format. Expected: JSON array [1,2,3...], comma-separated "1,2,3...", space-separated "1 2 3...", or base58 string`);
         }
-      } else {
+      } else if (Array.isArray(treasuryKey)) {
         secretKeyArray = treasuryKey;
+      } else {
+        throw new Error("Treasury private key must be a string or array");
       }
       
       if (!Array.isArray(secretKeyArray) || secretKeyArray.length !== 64) {
-        throw new Error(`Expected 64 numbers, got ${secretKeyArray?.length}`);
+        throw new Error(`Expected 64 numbers, got ${secretKeyArray?.length || 'undefined'}`);
+      }
+      
+      // Validate all numbers are valid bytes (0-255)
+      for (let i = 0; i < secretKeyArray.length; i++) {
+        const num = secretKeyArray[i];
+        if (!Number.isInteger(num) || num < 0 || num > 255) {
+          throw new Error(`Invalid byte at position ${i}: ${num}. Must be integer 0-255`);
+        }
       }
       
       treasuryKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
+      console.log(`Treasury wallet ready: ${treasuryKeypair.publicKey.toBase58()}`);
       
     } catch (error) {
-      console.error("Treasury key error:", error.message);
+      console.error("Treasury key parsing failed:", error.message);
       throw new Error(`Treasury setup failed: ${error.message}`);
     }
     
