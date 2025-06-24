@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navigation } from "@/components/navigation";
 import { StatsCard } from "@/components/ui/stats-card";
 import { MarketCard } from "@/components/ui/market-card";
@@ -7,6 +7,9 @@ import { JoinMarketModal } from "@/components/ui/join-market-modal";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import type { Market } from "@shared/schema";
 
 export default function Home() {
@@ -14,6 +17,7 @@ export default function Home() {
   const [filterStatus, setFilterStatus] = useState<string>("open");
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null);
   const { publicKey } = useSolanaWallet();
+  const { toast } = useToast();
 
   const { data: allMarkets = [], isLoading } = useQuery({
     queryKey: ["/api/markets"],
@@ -44,6 +48,43 @@ export default function Home() {
 
   const handleJoinMarket = (market: Market) => {
     setSelectedMarket(market);
+  };
+
+  const closeMarketMutation = useMutation({
+    mutationFn: async (marketId: number) => {
+      await apiRequest("POST", `/api/markets/${marketId}/close`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Market Closed",
+        description: "Your market has been closed and your stake has been refunded.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/markets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/transactions"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to close market",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCloseMarket = (market: Market) => {
+    closeMarketMutation.mutate(market.id);
   };
 
   const tabs = [
@@ -188,6 +229,7 @@ export default function Home() {
                 key={market.id}
                 market={market}
                 onJoin={handleJoinMarket}
+                onClose={handleCloseMarket}
               />
             ))}
           </div>

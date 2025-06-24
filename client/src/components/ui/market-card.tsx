@@ -29,6 +29,8 @@ export function MarketCard({ market, onJoin, onClose }: MarketCardProps) {
             {isWinner ? "🏆 Won" : "💔 Lost"}
           </Badge>
         );
+      case "cancelled":
+        return <Badge className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600">❌ Cancelled</Badge>;
       default:
         return <Badge className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600">❓ Unknown</Badge>;
     }
@@ -64,6 +66,18 @@ export function MarketCard({ market, onJoin, onClose }: MarketCardProps) {
     }
     
     if (market.creatorId === publicKey) {
+      // Show close button if market is open and no one has joined
+      if (market.status === "open" && !market.counterpartyId && onClose) {
+        return (
+          <Button 
+            variant="outline" 
+            className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300"
+            onClick={() => onClose(market)}
+          >
+            Close Market
+          </Button>
+        );
+      }
       return (
         <Button variant="outline" className="w-full" disabled>
           Your Market
