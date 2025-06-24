@@ -5,22 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
-// Use multiple RPC endpoints for better reliability
-const RPC_ENDPOINTS = [
-  "https://api.mainnet-beta.solana.com",
-  "https://solana-api.projectserum.com",
-  "https://rpc.ankr.com/solana"
-];
-
-// Create connection with retry logic
-function createSolanaConnection() {
-  const endpoint = RPC_ENDPOINTS[Math.floor(Math.random() * RPC_ENDPOINTS.length)];
-  return new Connection(endpoint, {
-    commitment: 'confirmed',
-    confirmTransactionInitialTimeout: 60000,
-  });
-}
-
 interface BasicSOLPaymentProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +15,9 @@ interface BasicSOLPaymentProps {
 }
 
 const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
+
+// Use reliable Solana RPC endpoint
+const connection = new Connection("https://mainnet.helius-rpc.com/?api-key=public", 'confirmed');
 
 export function BasicSOLPayment({ 
   isOpen, 
@@ -70,98 +57,38 @@ export function BasicSOLPayment({
         throw new Error("Phantom wallet not found");
       }
 
-      console.log("Starting basic SOL payment...");
+      console.log("Starting SOL payment...");
       console.log("From:", publicKey);
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Create connection using our reliable RPC endpoints
-      const connection = createSolanaConnection();
-      
-      const fromPubkey = new PublicKey(publicKey);
-      const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
+      
+      // Create simple transaction
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: new PublicKey(publicKey),
+          toPubkey: new PublicKey(TREASURY_WALLET),
+          lamports,
+        })
+      );
 
-      // Create transfer instruction
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey,
-        toPubkey,
-        lamports,
+      // Use Phantom's signAndSendTransaction which handles all the complexity
+      const { signature } = await window.solana.signAndSendTransaction(transaction);
+      console.log("Transaction successful:", signature);
+      
+      toast({
+        title: "Payment Successful",
+        description: `Successfully sent ${amount} SOL`,
       });
-
-      // Create transaction and set required fields
-      const transaction = new Transaction().add(transferInstruction);
       
-      // Get recent blockhash with retry logic
-      let blockhash;
-      let attempts = 0;
-      const maxAttempts = 3;
+      onPaymentComplete?.(signature);
+      onClose();
       
-      while (attempts < maxAttempts) {
-        try {
-          const result = await connection.getLatestBlockhash('confirmed');
-          blockhash = result.blockhash;
-          break;
-        } catch (error) {
-          attempts++;
-          console.log(`Blockhash fetch attempt ${attempts} failed:`, error);
-          if (attempts >= maxAttempts) {
-            throw new Error(`Failed to get blockhash after ${maxAttempts} attempts`);
-          }
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = fromPubkey;
-
-      console.log("Requesting Phantom signature...");
-
-      // Request signature from Phantom
-      const signedTransaction = await window.solana.signTransaction(transaction);
-
-      if (signedTransaction) {
-        console.log("Transaction signed successfully");
-        
-        let signature = `signed_tx_${Date.now()}`;
-        
-        // Send the signed transaction to the network
-        try {
-          signature = await connection.sendRawTransaction(signedTransaction.serialize());
-          console.log("Transaction sent with signature:", signature);
-          
-          // Wait for confirmation with timeout
-          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-          console.log("Transaction confirmed:", confirmation);
-          
-          if (confirmation.value.err) {
-            throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
-          }
-        } catch (sendError: any) {
-          console.error("Transaction send/confirm error:", sendError);
-          // If network issues, still treat signing as success for UX
-          console.log("Transaction was signed but network confirmation failed");
-        }
-        
-        toast({
-          title: "Payment Successful",
-          description: `Successfully sent ${amount} SOL`,
-        });
-
-        if (onPaymentComplete) {
-          onPaymentComplete(signature);
-        }
-        
-        onClose();
-      } else {
-        throw new Error("Transaction signing failed");
-      }
-
     } catch (error: any) {
       console.error("Payment error:", error);
       
-      if (error.code === 4001 || error.message?.includes("rejected")) {
+      if (error.code === 4001 || error.message?.includes("rejected") || error.message?.includes("cancelled")) {
         toast({
           title: "Payment Cancelled",
           description: "You cancelled the transaction",
@@ -169,7 +96,7 @@ export function BasicSOLPayment({
       } else {
         toast({
           title: "Payment Failed",
-          description: error.message || "Could not process payment",
+          description: error.message || "Unable to process SOL payment. Please try again.",
           variant: "destructive",
         });
       }
@@ -187,22 +114,20 @@ export function BasicSOLPayment({
         
         <div className="space-y-4">
           <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-            <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+            <h3 className="font-semibold text-blue-900 dark:text-blue-100">
               {action === "create" ? "Creating Market" : "Joining Market"}
-            </div>
-            <div className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-              {marketTitle}
-            </div>
-            <div className="text-lg font-bold text-blue-900 dark:text-blue-100 mt-2">
+            </h3>
+            <p className="text-blue-700 dark:text-blue-300">{marketTitle}</p>
+            <p className="text-lg font-bold text-blue-900 dark:text-blue-100 mt-2">
               Amount Required: {amount} SOL
-            </div>
+            </p>
           </div>
-
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Click "Pay with Phantom" to approve this SOL transfer.
-          </div>
-
-          <div className="flex gap-3">
+          </p>
+          
+          <div className="flex gap-2 pt-4">
             <Button 
               onClick={handlePayment}
               disabled={isProcessing || !connected}
