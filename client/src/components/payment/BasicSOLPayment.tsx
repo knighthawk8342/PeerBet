@@ -58,11 +58,15 @@ export function BasicSOLPayment({
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Import Solana web3 components
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      // Import Solana web3 components dynamically to avoid Buffer issues
+      const solanaWeb3 = await import('@solana/web3.js');
+      const { PublicKey, Transaction, SystemProgram, Connection } = solanaWeb3;
       
-      // Use Alchemy mainnet RPC
-      const connection = new Connection("https://solana-mainnet.g.alchemy.com/v2/demo");
+      // Use Helius mainnet RPC (more reliable than official endpoint)
+      const connection = new Connection("https://mainnet.helius-rpc.com/?api-key=demo", {
+        commitment: 'confirmed',
+        disableRetryOnRateLimit: false,
+      });
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
@@ -75,16 +79,28 @@ export function BasicSOLPayment({
         lamports,
       });
 
-      // Create transaction and get recent blockhash
+      // Create transaction and get recent blockhash with retry logic
       const transaction = new Transaction().add(transferInstruction);
       
-      try {
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = fromPubkey;
-      } catch (blockError) {
-        console.error("Failed to get blockhash:", blockError);
-        throw new Error("Network unavailable. Please try again.");
+      let retries = 3;
+      let blockhash;
+      
+      while (retries > 0) {
+        try {
+          const blockHashInfo = await connection.getLatestBlockhash('confirmed');
+          blockhash = blockHashInfo.blockhash;
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = fromPubkey;
+          break;
+        } catch (blockError) {
+          console.error(`Failed to get blockhash (attempt ${4 - retries}):`, blockError);
+          retries--;
+          if (retries === 0) {
+            throw new Error("Unable to connect to Solana network. Please check your internet connection and try again.");
+          }
+          // Wait 1 second before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
 
       console.log("Requesting Phantom signature...");
