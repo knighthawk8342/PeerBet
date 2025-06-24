@@ -119,6 +119,8 @@ Changelog:
 - June 24, 2025. Enhanced UI with cancelled market status badges and dedicated "Closed" tab filter
 - June 24, 2025. Implemented automatic SOL refunds from treasury wallet when markets are closed
 - June 24, 2025. Fixed treasury private key parsing to support base58 format and automatic refund transactions
+- June 24, 2025. CRITICAL ISSUE: Adding server-side Solana dependencies for refunds broke client-side payments completely
+- June 24, 2025. Payments worked perfectly before refund system but fail with blockhash errors after Buffer polyfill addition
 - June 24, 2025. Resolved Buffer compatibility issues in payment components for browser environment
 ```
 

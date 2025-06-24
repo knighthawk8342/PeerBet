@@ -49,22 +49,32 @@ export function MinimalSOLPayment({
         throw new Error("Phantom wallet not found");
       }
 
-      // Use Phantom's direct transfer method
+      // Use standard approach but with minimal dependencies
+      console.log("Creating basic Solana transaction...");
+      
+      // Dynamic import to avoid conflicts
+      const solana = await import('@solana/web3.js');
+      const { PublicKey, Transaction, SystemProgram } = solana;
+      
+      const fromPubkey = new PublicKey(publicKey);
+      const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
-      
-      console.log("Requesting Phantom transfer...");
-      
-      // Try Phantom's transfer method
-      const result = await window.solana.request({
-        method: "sol_transferLamports",
-        params: {
-          to: TREASURY_WALLET,
-          lamports: lamports,
-        },
+
+      // Create minimal transaction
+      const transferInstruction = SystemProgram.transfer({
+        fromPubkey,
+        toPubkey,
+        lamports,
       });
       
-      console.log("Transfer result:", result);
-      const signature = result.signature || result;
+      const transaction = new Transaction().add(transferInstruction);
+      
+      console.log("Requesting Phantom to handle complete transaction...");
+      
+      // Let Phantom handle everything (blockhash, fees, sending)
+      const signature = await window.solana.signAndSendTransaction(transaction);
+      
+      console.log("Transaction signature:", signature);
       
       console.log("Payment successful:", signature);
 
