@@ -53,26 +53,13 @@ export default function Home() {
 
   const closeMarketMutation = useMutation({
     mutationFn: async (marketId: number) => {
-      return await apiRequest("POST", `/api/markets/${marketId}/close`);
+      await apiRequest("POST", `/api/markets/${marketId}/close`);
     },
-    onSuccess: (data: any) => {
-      const refundStatus = data?.refund?.status;
-      const refundAmount = data?.refund?.amount;
-      const signature = data?.refund?.signature;
-      
-      if (refundStatus === "completed" && signature) {
-        toast({
-          title: "Market Closed & Refunded",
-          description: `Your market has been closed and ${refundAmount} SOL has been automatically refunded to your wallet.`,
-        });
-      } else {
-        toast({
-          title: "Market Closed",
-          description: "Your market has been closed. Refund processing may take a moment.",
-          variant: "default",
-        });
-      }
-      
+    onSuccess: () => {
+      toast({
+        title: "Market Closed",
+        description: "Your market has been closed and your stake has been refunded.",
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/markets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/markets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/transactions"] });

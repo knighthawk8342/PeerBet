@@ -7,114 +7,6 @@ import type { RequestHandler } from "express";
 
 const PLATFORM_FEE_RATE = 0.02; // 2%
 
-// Helper function to send SOL refund
-async function sendSOLRefund(recipientAddress: string, amountSOL: number): Promise<string> {
-  try {
-    // For security, the treasury private key should be stored as an environment variable
-    if (!process.env.TREASURY_PRIVATE_KEY) {
-      throw new Error("Treasury private key not configured");
-    }
-    
-    const treasuryKey = process.env.TREASURY_PRIVATE_KEY;
-    let treasuryKeypair;
-    
-    try {
-      let secretKeyArray;
-      
-      // Debug logging to see the actual format
-      console.log("Treasury key type:", typeof treasuryKey);
-      console.log("Treasury key length:", treasuryKey?.length);
-      console.log("Treasury key first 20 chars:", treasuryKey?.substring(0, 20));
-      
-      if (typeof treasuryKey === 'string') {
-        const cleaned = treasuryKey.trim();
-        
-        // Try different parsing approaches
-        if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-          // JSON array format
-          secretKeyArray = JSON.parse(cleaned);
-        } else if (cleaned.includes(',')) {
-          // Comma-separated format
-          secretKeyArray = cleaned.split(',').map(str => {
-            const num = parseInt(str.trim());
-            if (isNaN(num)) throw new Error(`Invalid number: "${str.trim()}"`);
-            return num;
-          });
-        } else if (cleaned.match(/^\d+(\s+\d+)*$/)) {
-          // Space-separated format
-          secretKeyArray = cleaned.split(/\s+/).map(str => {
-            const num = parseInt(str.trim());
-            if (isNaN(num)) throw new Error(`Invalid number: "${str.trim()}"`);
-            return num;
-          });
-        } else if (cleaned.length === 88 || cleaned.length === 44) {
-          // Try as base58 string (Solana wallet format)
-          try {
-            secretKeyArray = Array.from(bs58.decode(cleaned));
-          } catch {
-            throw new Error(`Failed to decode base58 private key`);
-          }
-        } else {
-          throw new Error(`Unsupported format. Expected: JSON array [1,2,3...], comma-separated "1,2,3...", space-separated "1 2 3...", or base58 string`);
-        }
-      } else if (Array.isArray(treasuryKey)) {
-        secretKeyArray = treasuryKey;
-      } else {
-        throw new Error("Treasury private key must be a string or array");
-      }
-      
-      if (!Array.isArray(secretKeyArray) || secretKeyArray.length !== 64) {
-        throw new Error(`Expected 64 numbers, got ${secretKeyArray?.length || 'undefined'}`);
-      }
-      
-      // Validate all numbers are valid bytes (0-255)
-      for (let i = 0; i < secretKeyArray.length; i++) {
-        const num = secretKeyArray[i];
-        if (!Number.isInteger(num) || num < 0 || num > 255) {
-          throw new Error(`Invalid byte at position ${i}: ${num}. Must be integer 0-255`);
-        }
-      }
-      
-      treasuryKeypair = Keypair.fromSecretKey(new Uint8Array(secretKeyArray));
-      console.log(`Treasury wallet ready: ${treasuryKeypair.publicKey.toBase58()}`);
-      
-    } catch (error) {
-      console.error("Treasury key parsing failed:", error.message);
-      throw new Error(`Treasury setup failed: ${error.message}`);
-    }
-    
-    const recipientPubkey = new PublicKey(recipientAddress);
-    const lamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);
-    
-    // Create transaction
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: treasuryKeypair.publicKey,
-        toPubkey: recipientPubkey,
-        lamports,
-      })
-    );
-    
-    // Get recent blockhash
-    const { blockhash } = await connection.getLatestBlockhash();
-    transaction.recentBlockhash = blockhash;
-    transaction.feePayer = treasuryKeypair.publicKey;
-    
-    // Sign and send transaction
-    transaction.sign(treasuryKeypair);
-    const signature = await connection.sendRawTransaction(transaction.serialize());
-    
-    // Confirm transaction
-    await connection.confirmTransaction(signature, 'confirmed');
-    
-    console.log(`SOL refund sent: ${amountSOL} SOL to ${recipientAddress}, signature: ${signature}`);
-    return signature;
-  } catch (error) {
-    console.error("Error sending SOL refund:", error);
-    throw new Error(`Failed to send SOL refund: ${error.message}`);
-  }
-}
-
 // Simple wallet-based authentication middleware
 const requireWalletAuth: RequestHandler = async (req: any, res, next) => {
   const walletPublicKey = req.headers['x-wallet-public-key'] as string;
@@ -394,37 +286,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Close the market
       const closedMarket = await storage.closeMarket(marketId, user.id);
       
-      // Send automatic SOL refund from treasury wallet
+      // Refund the creator's stake since no one joined
       const stakeAmount = parseFloat(closedMarket.stakeAmount);
-      
-      let refundSignature = null;
-      try {
-        refundSignature = await sendSOLRefund(user.id, stakeAmount);
-        console.log(`Automatic refund sent to ${user.id}: ${stakeAmount} SOL, signature: ${refundSignature}`);
-      } catch (refundError) {
-        console.error("Failed to send automatic refund:", refundError);
-        // Continue without failing the market closure, but log the error
-      }
-      
-      // Create transaction record
       await storage.createTransaction({
         userId: user.id,
         marketId: closedMarket.id,
         type: "refund",
         amount: stakeAmount.toString(),
-        description: refundSignature 
-          ? `Automatic refund for closed market: ${closedMarket.title} (${refundSignature})`
-          : `Refund for closed market: ${closedMarket.title} (manual processing required)`,
+        description: `Refund for closed market: ${closedMarket.title}`,
       });
       
-      res.json({ 
-        market: closedMarket,
-        refund: {
-          amount: stakeAmount,
-          signature: refundSignature,
-          status: refundSignature ? "completed" : "pending"
-        }
-      });
+      res.json(closedMarket);
     } catch (error) {
       console.error("Error closing market:", error);
       res.status(500).json({ message: error.message || "Failed to close market" });
