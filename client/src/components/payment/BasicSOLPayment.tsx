@@ -78,8 +78,23 @@ export function BasicSOLPayment({
       // Create transaction and set required fields
       const transaction = new Transaction().add(transferInstruction);
       
-      // Get recent blockhash - required for transaction
-      const { blockhash } = await connection.getLatestBlockhash();
+      // Get recent blockhash - required for transaction with retry logic
+      let blockhash;
+      try {
+        const latestBlockhash = await connection.getLatestBlockhash();
+        blockhash = latestBlockhash.blockhash;
+      } catch (error) {
+        console.error("Failed to get latest blockhash, trying alternative method:", error);
+        // Fallback to deprecated method if new one fails
+        try {
+          blockhash = await connection.getRecentBlockhash();
+          blockhash = blockhash.blockhash;
+        } catch (fallbackError) {
+          console.error("Both blockhash methods failed:", fallbackError);
+          throw new Error("Unable to fetch blockhash from Solana network");
+        }
+      }
+      
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
 
@@ -132,6 +147,12 @@ export function BasicSOLPayment({
         toast({
           title: "Payment Cancelled",
           description: "You cancelled the transaction",
+        });
+      } else if (error.message?.includes("blockhash") || error.message?.includes("fetch")) {
+        toast({
+          title: "Network Error",
+          description: "Solana network connection issue. Please try again.",
+          variant: "destructive",
         });
       } else {
         toast({
