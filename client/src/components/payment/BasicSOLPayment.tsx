@@ -67,8 +67,8 @@ export function BasicSOLPayment({
       
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use devnet for testing - it's more reliable in this environment
-      const connection = new Connection("https://api.devnet.solana.com");
+      // Use mainnet for production testing
+      const connection = new Connection("https://api.mainnet-beta.solana.com");
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);

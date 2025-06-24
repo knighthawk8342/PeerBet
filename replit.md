@@ -117,8 +117,9 @@ Changelog:
 - June 24, 2025. Implemented odds functionality allowing asymmetric stakes between creator and joiner
 - June 24, 2025. Added close market feature for creators to cancel open markets with automatic refunds
 - June 24, 2025. Enhanced UI with cancelled market status badges and dedicated "Closed" tab filter
-- June 24, 2025. Fixed Solana payment system connectivity issues by switching to devnet RPC endpoint
-- June 24, 2025. Successfully resolved blockhash fetching errors - payment system now working with proper error handling
+- June 24, 2025. Fixed Solana payment system connectivity issues and resolved blockhash fetching errors
+- June 24, 2025. Successfully tested payment flow with Phantom wallet integration - system working correctly
+- June 24, 2025. Switched back to mainnet for production testing with real SOL transactions
 ```
 
 ## User Preferences
