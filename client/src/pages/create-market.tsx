@@ -10,7 +10,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BasicSOLPayment } from "@/components/payment/BasicSOLPayment";
+import { MinimalSOLPayment } from "@/components/payment/MinimalSOLPayment";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -357,7 +357,7 @@ export default function CreateMarket() {
         </div>
 
         {/* USDC Payment Modal */}
-        <BasicSOLPayment
+        <MinimalSOLPayment
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
           onPaymentComplete={handlePaymentComplete}
