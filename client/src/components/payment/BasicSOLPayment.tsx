@@ -88,17 +88,45 @@ export function BasicSOLPayment({
       }
       
       try {
-        // Fallback to manual transaction creation
+        // Manual transaction creation with better error handling
+        console.log("Creating manual SOL transaction...");
         const { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
         
-        // Use a working RPC endpoint
-        const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+        // Try multiple RPC endpoints for reliability
+        const rpcEndpoints = [
+          'https://api.mainnet-beta.solana.com',
+          'https://solana-api.projectserum.com',
+          'https://rpc.ankr.com/solana'
+        ];
+        
+        let connection = null;
+        let workingEndpoint = null;
+        
+        // Test RPC connections
+        for (const endpoint of rpcEndpoints) {
+          try {
+            console.log("Testing RPC endpoint:", endpoint);
+            const testConnection = new Connection(endpoint, 'confirmed');
+            await testConnection.getLatestBlockhash();
+            connection = testConnection;
+            workingEndpoint = endpoint;
+            console.log("Working RPC found:", endpoint);
+            break;
+          } catch (rpcError) {
+            console.log("RPC endpoint failed:", endpoint, rpcError);
+            continue;
+          }
+        }
+        
+        if (!connection) {
+          throw new Error("All RPC endpoints unreachable - network restrictions prevent Solana access");
+        }
         
         const fromPubkey = new PublicKey(publicKey);
         const toPubkey = new PublicKey(TREASURY_WALLET);
         const lamports = Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL);
         
-        // Create transfer instruction
+        console.log("Creating transfer instruction...");
         const transferInstruction = SystemProgram.transfer({
           fromPubkey,
           toPubkey,
@@ -107,16 +135,18 @@ export function BasicSOLPayment({
         
         const transaction = new Transaction().add(transferInstruction);
         
-        // Get recent blockhash
+        console.log("Getting latest blockhash...");
         const { blockhash } = await connection.getLatestBlockhash();
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = fromPubkey;
         
-        // Sign and send transaction
+        console.log("Requesting transaction signature from wallet...");
         const signedTransaction = await window.solana.signTransaction(transaction);
+        
+        console.log("Sending transaction to network...");
         const signature = await connection.sendRawTransaction(signedTransaction.serialize());
         
-        // Confirm transaction
+        console.log("Confirming transaction...");
         await connection.confirmTransaction(signature);
         
         console.log("SOL transfer confirmed:", signature);
@@ -132,12 +162,13 @@ export function BasicSOLPayment({
         
       } catch (error) {
         console.error("SOL transfer failed:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        
         toast({
           title: "Transfer Failed",
-          description: "Unable to process SOL transfer. Market creation requires confirmed payment.",
+          description: `Unable to process SOL transfer: ${errorMessage.substring(0, 100)}...`,
           variant: "destructive",
         });
-        // Do not call onPaymentComplete - market should not be created
         onClose();
       }
 
