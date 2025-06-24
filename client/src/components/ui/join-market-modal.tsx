@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
-import { SimpleSOLTransfer } from "@/components/payment/SimpleSOLTransfer";
+import { BasicSOLPayment } from "@/components/payment/BasicSOLPayment";
 import type { Market } from "@shared/schema";
 
 interface JoinMarketModalProps {
@@ -77,7 +77,7 @@ export function JoinMarketModal({ market, isOpen, onClose }: JoinMarketModalProp
   // Show payment modal if payment flow is initiated
   if (showPayment) {
     return (
-      <SimpleSOLTransfer
+      <BasicSOLPayment
         isOpen={showPayment}
         onClose={() => setShowPayment(false)}
         onPaymentComplete={handlePaymentComplete}

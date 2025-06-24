@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useSolanaWallet } from "@/hooks/useSolanaWallet";
 
-interface BasicSOLPaymentProps {
+interface MinimalSOLPaymentProps {
   isOpen: boolean;
   onClose: () => void;
   onPaymentComplete?: (signature: string) => void;
@@ -15,14 +15,14 @@ interface BasicSOLPaymentProps {
 
 const TREASURY_WALLET = "5rkj4b1ksrt2GgKWm3xJWVNgunYCEbc4oyJohcz1bJdt";
 
-export function BasicSOLPayment({ 
+export function MinimalSOLPayment({ 
   isOpen, 
   onClose, 
   onPaymentComplete, 
   amount, 
   marketTitle, 
   action 
-}: BasicSOLPaymentProps) {
+}: MinimalSOLPaymentProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const { publicKey, connected } = useSolanaWallet();
   const { toast } = useToast();
@@ -37,50 +37,44 @@ export function BasicSOLPayment({
       return;
     }
 
-    if (publicKey === TREASURY_WALLET) {
-      toast({
-        title: "Invalid Transaction",
-        description: "Cannot send SOL to the same wallet",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
 
     try {
-      if (!window.solana?.isPhantom) {
-        throw new Error("Phantom wallet not found");
-      }
-
-      console.log("Starting basic SOL payment...");
+      console.log("Starting minimal SOL payment...");
       console.log("From:", publicKey);
       console.log("To:", TREASURY_WALLET);
       console.log("Amount:", amount, "SOL");
 
-      // Use simple working approach from early implementation
-      console.log("Using simplified transaction approach...");
+      if (!window.solana?.isPhantom) {
+        throw new Error("Phantom wallet not found");
+      }
+
+      // Use standard approach but with minimal dependencies
+      console.log("Creating basic Solana transaction...");
       
-      const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
+      // Dynamic import to avoid conflicts
+      const solana = await import('@solana/web3.js');
+      const { PublicKey, Transaction, SystemProgram } = solana;
       
       const fromPubkey = new PublicKey(publicKey);
       const toPubkey = new PublicKey(TREASURY_WALLET);
       const lamports = Math.floor(parseFloat(amount) * 1_000_000_000);
 
-      // Create transfer instruction
+      // Create minimal transaction
       const transferInstruction = SystemProgram.transfer({
         fromPubkey,
         toPubkey,
         lamports,
       });
-
-      // Create basic transaction
+      
       const transaction = new Transaction().add(transferInstruction);
       
-      console.log("Requesting Phantom to sign and send...");
+      console.log("Requesting Phantom to handle complete transaction...");
       
-      // Use Phantom's signAndSendTransaction which handles everything
+      // Let Phantom handle everything (blockhash, fees, sending)
       const signature = await window.solana.signAndSendTransaction(transaction);
+      
+      console.log("Transaction signature:", signature);
       
       console.log("Payment successful:", signature);
 
@@ -89,7 +83,7 @@ export function BasicSOLPayment({
 
       toast({
         title: "Payment Successful",
-        description: `${amount} SOL sent successfully for ${action === "create" ? "creating" : "joining"} "${marketTitle}"`,
+        description: `${amount} SOL sent successfully`,
       });
 
     } catch (error) {
@@ -97,12 +91,10 @@ export function BasicSOLPayment({
       
       let errorMessage = "Payment failed. Please try again.";
       if (error instanceof Error) {
-        if (error.message.includes("User rejected")) {
+        if (error.message.includes("User rejected") || error.message.includes("cancelled")) {
           errorMessage = "Transaction cancelled by user";
         } else if (error.message.includes("insufficient")) {
           errorMessage = "Insufficient SOL balance";
-        } else if (error.message.includes("Network")) {
-          errorMessage = "Network error. Please check your connection.";
         } else {
           errorMessage = error.message;
         }
@@ -146,26 +138,22 @@ export function BasicSOLPayment({
             </div>
           </div>
 
-          {!connected ? (
-            <div className="text-center text-muted-foreground">
-              Please connect your wallet to continue
-            </div>
-          ) : (
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                {amount} SOL will be sent from your wallet to complete this transaction
-              </p>
-              
-              <Button 
-                onClick={handlePayment} 
-                disabled={isProcessing || !connected}
-                className="w-full"
-                size="lg"
-              >
-                {isProcessing ? "Processing..." : `Pay ${amount} SOL`}
-              </Button>
-            </div>
-          )}
+          <div className="text-sm text-muted-foreground text-center">
+            {amount} SOL will be sent from your wallet to complete this transaction
+          </div>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose} className="flex-1">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handlePayment} 
+              disabled={isProcessing || !connected}
+              className="flex-1"
+            >
+              {isProcessing ? "Processing..." : `Pay ${amount} SOL`}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
