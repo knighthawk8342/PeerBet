@@ -67,11 +67,11 @@ export function BasicSOLPayment({
       
       const { PublicKey, Transaction, SystemProgram, Connection } = await import('@solana/web3.js');
       
-      // Use multiple RPC endpoints for reliability
+      // Use Helius RPC for better reliability
       const rpcEndpoints = [
-        "https://api.mainnet-beta.solana.com",
-        "https://solana-api.projectserum.com",
-        "https://rpc.ankr.com/solana"
+        "https://mainnet.helius-rpc.com/?api-key=b8bb41c6-3d8e-4b77-9bb7-2c3a5d6e2f4a",
+        "https://rpc.helius.xyz/?api-key=b8bb41c6-3d8e-4b77-9bb7-2c3a5d6e2f4a",
+        "https://api.mainnet-beta.solana.com"
       ];
       
       let connection;
